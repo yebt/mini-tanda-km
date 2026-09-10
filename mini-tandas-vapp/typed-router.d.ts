@@ -38,6 +38,41 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/clients/': RouteRecordInfo<
+      '/clients/',
+      '/clients',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/clients/[id]': RouteRecordInfo<
+      '/clients/[id]',
+      '/clients/:id',
+      { id: ParamValue<true> },
+      { id: ParamValue<false> },
+      | never
+    >,
+    '/products/': RouteRecordInfo<
+      '/products/',
+      '/products',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/tandas/': RouteRecordInfo<
+      '/tandas/',
+      '/tandas',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/tandas/[id]': RouteRecordInfo<
+      '/tandas/[id]',
+      '/tandas/:id',
+      { id: ParamValue<true> },
+      { id: ParamValue<false> },
+      | never
+    >,
   }
 
   /**
@@ -58,6 +93,46 @@ declare module 'vue-router/auto-routes' {
         | never
       pathParamNames:
         | never
+    }
+    'src/pages/clients/index.vue': {
+      routes:
+        | '/clients/'
+      views:
+        | never
+      pathParamNames:
+        | never
+    }
+    'src/pages/clients/[id].vue': {
+      routes:
+        | '/clients/[id]'
+      views:
+        | never
+      pathParamNames:
+        | 'id'
+    }
+    'src/pages/products/index.vue': {
+      routes:
+        | '/products/'
+      views:
+        | never
+      pathParamNames:
+        | never
+    }
+    'src/pages/tandas/index.vue': {
+      routes:
+        | '/tandas/'
+      views:
+        | never
+      pathParamNames:
+        | never
+    }
+    'src/pages/tandas/[id].vue': {
+      routes:
+        | '/tandas/[id]'
+      views:
+        | never
+      pathParamNames:
+        | 'id'
     }
   }
 
