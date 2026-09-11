@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { TandaType } from '@shared/db/types'
+import type { SaleWithDetails, TandaType } from '@shared/db/types'
+import { useScrollLock } from '@shared/ui/useScrollLock'
 
 import SaleForm from './SaleForm.vue'
 
@@ -8,7 +9,11 @@ defineProps<{
   type: TandaType
   /** SKU pre-selected when the dialog opens (e.g. sold from the inventory). */
   initialSkuId?: string
+  /** Sale being edited; when set, the dialog opens the form in edit mode. */
+  initialSale?: SaleWithDetails
 }>()
+
+useScrollLock()
 
 const emit = defineEmits<{
   close: []
@@ -22,12 +27,19 @@ function onClose() {
 <template>
   <Teleport to="body">
     <div class="dialog-backdrop" @click="onClose">
-      <div class="dialog-sheet" role="dialog" aria-modal="true" aria-label="New sale" @click.stop>
+      <div
+        class="dialog-sheet"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="initialSale ? 'Edit sale' : 'New sale'"
+        @click.stop
+      >
         <button type="button" class="dialog-close" aria-label="Close" @click="onClose">×</button>
         <SaleForm
           :tanda-id="tandaId"
           :type="type"
           :initial-sku-id="initialSkuId"
+          :initial-sale="initialSale"
           @submitted="onClose"
         />
       </div>
@@ -53,6 +65,7 @@ function onClose() {
   max-width: 34rem;
   max-height: calc(100dvh - var(--space-8));
   overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--color-bg);
   border-radius: var(--radius);
 }

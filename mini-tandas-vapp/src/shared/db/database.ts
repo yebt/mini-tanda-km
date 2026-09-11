@@ -34,6 +34,9 @@ function schedulePersist(): void {
 async function persistNow(): Promise<void> {
   if (!db || !persistQueued) return
   persistQueued = false
+  // Tests run in Node, where indexedDB does not exist; persistence is a
+  // browser-only concern, so skip silently instead of rejecting.
+  if (typeof indexedDB === 'undefined') return
   await idbSet(DB_KEY, db.export())
 }
 

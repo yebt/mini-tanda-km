@@ -11,6 +11,10 @@ import { confirmDialog } from '@shared/ui/useConfirm'
 
 const props = defineProps<{ tandaId: string; status: TandaStatus }>()
 
+const emit = defineEmits<{
+  edit: [sale: SaleWithDetails]
+}>()
+
 const tandasStore = useTandasStore()
 const router = useRouter()
 
@@ -48,8 +52,9 @@ async function remove(sale: SaleWithDetails) {
           <span class="muted">{{ formatDateTime(sale.createdAt) }}</span>
         </div>
         <ActionMenu
-          :show-edit="false"
+          :show-edit="true"
           :show-pay="sale.balance > 0"
+          @edit="emit('edit', sale)"
           @pay="recordPayment(sale)"
           @remove="remove(sale)"
         />

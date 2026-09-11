@@ -1,7 +1,7 @@
 <script setup lang="ts">
 defineOptions({ name: 'SearchCombobox' })
 
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 
 export interface ComboOption {
   value: string

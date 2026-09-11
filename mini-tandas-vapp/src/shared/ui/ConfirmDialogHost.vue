@@ -1,7 +1,19 @@
 <script setup lang="ts">
+import { watch } from 'vue'
+
 import { useConfirmHost } from '@shared/ui/useConfirm'
+import { lockScroll, unlockScroll } from '@shared/ui/useScrollLock'
 
 const { pending, accept, dismiss } = useConfirmHost()
+
+watch(
+  pending,
+  (value) => {
+    if (value) lockScroll()
+    else unlockScroll()
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -39,6 +51,7 @@ const { pending, accept, dismiss } = useConfirmHost()
   padding: var(--space-6);
   max-width: 380px;
   width: 100%;
+  overscroll-behavior: contain;
 }
 
 .confirm-message {

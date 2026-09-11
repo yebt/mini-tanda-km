@@ -311,6 +311,74 @@ export function createSale(input: {
   return { ok: true, saleId }
 }
 
+/**
+ * Replaces the items of an existing sale. Unit prices already on the sale are
+ * kept (an edit must not reprice old lines); newly added SKUs resolve the
+ * current price. Payments are untouched — the balance is derived on read.
+ */
+export function updateSale(saleId: string, items: SaleItemInput[]): CreateSaleResult {
+  const sale = get<{ tanda_id: string; type: TandaType }>(
+    'SELECT s.tanda_id, t.type FROM sales s JOIN tandas t ON t.id = s.tanda_id WHERE s.id = ?',
+    [saleId],
+  )
+  if (!sale) return { ok: false, error: 'Sale not found' }
+  if (items.length === 0) return { ok: false, error: 'Add at least one product' }
+
+  const previousItems = all<{ sku_id: string; quantity: number; unit_price: number }>(
+    'SELECT sku_id, quantity, unit_price FROM sale_items WHERE sale_id = ?',
+    [saleId],
+  )
+  const previousPrices = new Map(previousItems.map((row) => [row.sku_id, row.unit_price]))
+  const ownQuantities = new Map<string, number>()
+  for (const row of previousItems) {
+    ownQuantities.set(row.sku_id, (ownQuantities.get(row.sku_id) ?? 0) + row.quantity)
+  }
+
+  const priced = items.map((item) => {
+    const sku = getSku(item.skuId)
+    const product = sku ? getProduct(sku.productId) : null
+    if (!sku || !product) return { error: 'Unknown product' } as const
+    const price = previousPrices.get(item.skuId) ?? resolvePrice(product, sku)
+    if (price === null) return { error: `"${product.name}" has no price set` } as const
+    return { sku, quantity: item.quantity, unitPrice: price } as const
+  })
+  const errorItem = priced.find((item) => 'error' in item)
+  if (errorItem && 'error' in errorItem) {
+    return { ok: false, error: errorItem.error ?? 'Invalid item' }
+  }
+
+  if (sale.type === 'anticipated') {
+    const available = new Map(
+      listInventory(sale.tanda_id).map((entry) => [entry.sku.id, entry.available]),
+    )
+    // Give the sale's own quantities back before checking, so keeping or
+    // shrinking existing lines never fails against itself.
+    for (const [skuId, quantity] of ownQuantities) {
+      available.set(skuId, (available.get(skuId) ?? 0) + quantity)
+    }
+    for (const item of priced) {
+      if ('error' in item) continue
+      const remaining = available.get(item.sku.id)
+      if (remaining === undefined || remaining < item.quantity) {
+        return { ok: false, error: `Not enough stock for ${item.quantity}× item` }
+      }
+      available.set(item.sku.id, remaining - item.quantity)
+    }
+  }
+
+  transaction(() => {
+    run('DELETE FROM sale_items WHERE sale_id = ?', [saleId])
+    for (const item of priced) {
+      if ('error' in item) continue
+      run(
+        'INSERT INTO sale_items (id, sale_id, sku_id, quantity, unit_price) VALUES (?, ?, ?, ?, ?)',
+        [uid(), saleId, item.sku.id, item.quantity, item.unitPrice],
+      )
+    }
+  })
+  return { ok: true, saleId }
+}
+
 export function setDelivered(saleId: string, delivered: boolean): void {
   run('UPDATE sales SET delivered = ? WHERE id = ?', [delivered ? 1 : 0, saleId])
 }

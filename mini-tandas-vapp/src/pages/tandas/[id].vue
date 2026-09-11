@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import { useTandasStore } from '@shared/stores/tandas'
+import type { SaleWithDetails } from '@shared/db/types'
 import TandaHeader from '@/features/tandas/components/TandaHeader.vue'
 import StatusFlow from '@/features/tandas/components/StatusFlow.vue'
 import InventoryEditor from '@/features/tandas/components/InventoryEditor.vue'
@@ -30,16 +31,26 @@ const tab = ref<Tab>('sales')
 
 /** Sale dialog state; initialSkuId pre-selects a SKU when sold from inventory. */
 const dialogInitialSku = ref<string | undefined>(undefined)
+/** Sale being edited, if the dialog was opened from a sale card. */
+const dialogInitialSale = ref<SaleWithDetails | undefined>(undefined)
 const dialogOpen = ref(false)
 
 function openSaleDialog(skuId?: string) {
+  dialogInitialSale.value = undefined
   dialogInitialSku.value = skuId
+  dialogOpen.value = true
+}
+
+function openSaleEdit(sale: SaleWithDetails) {
+  dialogInitialSku.value = undefined
+  dialogInitialSale.value = sale
   dialogOpen.value = true
 }
 
 function closeSaleDialog() {
   dialogOpen.value = false
   dialogInitialSku.value = undefined
+  dialogInitialSale.value = undefined
 }
 </script>
 
@@ -83,7 +94,7 @@ function closeSaleDialog() {
           New sale
         </button>
       </div>
-      <SaleList :tanda-id="tanda.id" :status="tanda.status" />
+      <SaleList :tanda-id="tanda.id" :status="tanda.status" @edit="openSaleEdit" />
     </template>
 
     <InventoryEditor v-else :tanda="tanda" :sellable="canSell" @sell="openSaleDialog" />
@@ -103,6 +114,7 @@ function closeSaleDialog() {
       :tanda-id="tanda.id"
       :type="tanda.type"
       :initial-sku-id="dialogInitialSku"
+      :initial-sale="dialogInitialSale"
       @close="closeSaleDialog"
     />
   </template>

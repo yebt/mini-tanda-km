@@ -26,6 +26,7 @@ import {
   setDelivered,
   setInventoryQuantity,
   setTandaStatus,
+  updateSale,
 } from '../repos/tandas'
 
 let db: Database
@@ -314,6 +315,96 @@ describe('anticipated tandas', () => {
       items: [{ skuId: chocoFamily.id, quantity: 1 }],
     })
     expect(result.ok).toBe(false)
+  })
+})
+
+describe('editing sales', () => {
+  function setup() {
+    const { productId, sizeId, redVelvet, personal, family, coffee } = makeCake()
+    priceBySize(productId, sizeId, { [personal]: 90, [family]: 110 })
+    const skus = listSkusWithProducts().filter((sku) => sku.productId === productId)
+    const pick = (...options: string[]) =>
+      skus.find((sku) => options.every((option) => sku.optionIds.includes(option)))!
+    const clientId = createClient('María')
+    const tandaId = createTanda({ name: 'T', date: '2026-09-20', type: 'scheduled' })
+    return {
+      productId,
+      sizeId,
+      personal,
+      personalRv: pick(redVelvet, personal),
+      familyRv: pick(redVelvet, family),
+      chocoPersonal: pick(coffee, personal),
+      clientId,
+      tandaId,
+    }
+  }
+
+  it('adds a missing product to an existing sale and keeps original line prices', () => {
+    const { productId, personal, personalRv, familyRv, clientId, tandaId } = setup()
+    const saleResult = createSale({
+      tandaId,
+      clientId,
+      items: [{ skuId: personalRv.id, quantity: 2 }],
+    })
+    if (!saleResult.ok) throw new Error('expected sale')
+
+    // Admin raises the price after the sale exists; the old line must not reprice.
+    setPriceRow(productId, [personal], 150)
+
+    const edited = updateSale(saleResult.saleId, [
+      { skuId: personalRv.id, quantity: 2 },
+      { skuId: familyRv.id, quantity: 1 },
+    ])
+    expect(edited.ok).toBe(true)
+
+    const [sale] = listSales(tandaId)
+    expect(sale!.items).toHaveLength(2)
+    expect(sale!.total).toBe(2 * 90 + 110)
+    expect(sale!.balance).toBe(290)
+  })
+
+  it('removing every product is rejected instead of leaving an empty sale', () => {
+    const { personalRv, clientId, tandaId } = setup()
+    const saleResult = createSale({
+      tandaId,
+      clientId,
+      items: [{ skuId: personalRv.id, quantity: 1 }],
+    })
+    if (!saleResult.ok) throw new Error('expected sale')
+    expect(updateSale(saleResult.saleId, [])).toEqual({
+      ok: false,
+      error: 'Add at least one product',
+    })
+    expect(updateSale('missing-id', [{ skuId: personalRv.id, quantity: 1 }])).toEqual({
+      ok: false,
+      error: 'Sale not found',
+    })
+  })
+
+  it('lets an anticipated sale keep its own stock while editing, but not exceed it', () => {
+    const { personalRv, clientId } = setup()
+    const tandaId = createTanda({ name: 'TA', date: '2026-09-22', type: 'anticipated' })
+    const rvPersonal = personalRv
+    setInventoryQuantity(tandaId, rvPersonal.id, 4)
+
+    const saleResult = createSale({
+      tandaId,
+      clientId,
+      items: [{ skuId: rvPersonal.id, quantity: 4 }],
+    })
+    if (!saleResult.ok) throw new Error('expected sale')
+
+    // Keeping all 4 must not fail against itself…
+    expect(updateSale(saleResult.saleId, [{ skuId: rvPersonal.id, quantity: 4 }]).ok).toBe(true)
+    // …but a 5th unit is still refused.
+    expect(updateSale(saleResult.saleId, [{ skuId: rvPersonal.id, quantity: 5 }]).ok).toBe(false)
+
+    // Shrinking the sale frees stock for other sales.
+    expect(updateSale(saleResult.saleId, [{ skuId: rvPersonal.id, quantity: 2 }]).ok).toBe(true)
+    expect(
+      createSale({ tandaId, clientId, items: [{ skuId: rvPersonal.id, quantity: 2 }] }).ok,
+    ).toBe(true)
+    expect(listInventory(tandaId)[0]!.available).toBe(0)
   })
 })
 

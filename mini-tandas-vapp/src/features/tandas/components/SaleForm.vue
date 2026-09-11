@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 
 import { formatMoney } from '@shared/db/format'
-import type { TandaType } from '@shared/db/types'
+import type { SaleWithDetails, TandaType } from '@shared/db/types'
 import { useClientsStore } from '@shared/stores/clients'
 import { useProductsStore } from '@shared/stores/products'
 import { useTandasStore } from '@shared/stores/tandas'
@@ -13,6 +13,8 @@ const props = defineProps<{
   type: TandaType
   /** Pre-selected SKU (e.g. when launching the form from the inventory). */
   initialSkuId?: string
+  /** Existing sale being edited; when set, the form prefills and updates it. */
+  initialSale?: SaleWithDetails
 }>()
 
 const emit = defineEmits<{
@@ -23,8 +25,8 @@ const tandasStore = useTandasStore()
 const clientsStore = useClientsStore()
 const productsStore = useProductsStore()
 
-const clientChoice = ref('')
-const selectedSkuId = ref(props.initialSkuId ?? '')
+const clientChoice = ref(props.initialSale?.clientId ?? '')
+const selectedSkuId = ref(props.initialSale ? '' : (props.initialSkuId ?? ''))
 const quantity = ref(1)
 
 interface DraftLine {
@@ -34,8 +36,17 @@ interface DraftLine {
   quantity: number
 }
 
-const lines = ref<DraftLine[]>([])
+const lines = ref<DraftLine[]>(
+  props.initialSale?.items.map((line) => ({
+    skuId: line.skuId,
+    label: line.label,
+    price: line.unitPrice,
+    quantity: line.quantity,
+  })) ?? [],
+)
 const error = ref('')
+
+const isEdit = computed(() => props.initialSale !== undefined)
 
 const catalog = computed(() => productsStore.catalog)
 const clients = computed(() => clientsStore.clients)
@@ -49,6 +60,13 @@ const availableBySku = computed(
 
 function availabilityOf(skuId: string): number {
   return availableBySku.value.get(skuId) ?? 0
+}
+
+/** Stock the current draft may take for a SKU: batch availability plus what the
+ *  sale being edited already holds (so it never fails against itself). */
+function stockLimitOf(skuId: string): number {
+  const own = props.initialSale?.items.find((line) => line.skuId === skuId)?.quantity ?? 0
+  return availabilityOf(skuId) + own
 }
 
 const clientOptions = computed<ComboOption[]>(() =>
@@ -81,7 +99,7 @@ const remainingForSelected = computed<number | null>(() => {
   const inLines = lines.value
     .filter((line) => line.skuId === selectedSkuId.value)
     .reduce((sum, line) => sum + line.quantity, 0)
-  return availabilityOf(selectedSkuId.value) - inLines
+  return stockLimitOf(selectedSkuId.value) - inLines
 })
 
 const runningTotal = computed(() =>
@@ -115,8 +133,9 @@ function addLine() {
     const alreadyInLines = lines.value
       .filter((line) => line.skuId === sku.id)
       .reduce((sum, line) => sum + line.quantity, 0)
-    if (alreadyInLines + qty > availabilityOf(sku.id)) {
-      error.value = `Only ${availabilityOf(sku.id)} available for ${sku.label || sku.productName}.`
+    const limit = stockLimitOf(sku.id)
+    if (alreadyInLines + qty > limit) {
+      error.value = `Only ${Math.max(limit - alreadyInLines, 0)} available for ${sku.label || sku.productName}.`
       return
     }
   }
@@ -157,11 +176,10 @@ function submit() {
     error.value = 'Pick a client.'
     return
   }
-  const result = tandasStore.addSale({
-    tandaId: props.tandaId,
-    clientId: clientChoice.value,
-    items: lines.value.map((line) => ({ skuId: line.skuId, quantity: line.quantity })),
-  })
+  const items = lines.value.map((line) => ({ skuId: line.skuId, quantity: line.quantity }))
+  const result = props.initialSale
+    ? tandasStore.editSale(props.initialSale.id, items)
+    : tandasStore.addSale({ tandaId: props.tandaId, clientId: clientChoice.value, items })
   if (!result.ok) {
     error.value = result.error
     return
@@ -173,11 +191,13 @@ function submit() {
 
 <template>
   <section class="card sale-form">
-    <h2>New sale</h2>
+    <h2>{{ isEdit ? 'Edit sale' : 'New sale' }}</h2>
 
     <div class="field">
       <label class="label" for="sale-client">Client</label>
+      <p v-if="initialSale" class="client-static">{{ initialSale.client.name }}</p>
       <Combobox
+        v-else
         v-model="clientChoice"
         :options="clientOptions"
         input-id="sale-client"
@@ -238,7 +258,7 @@ function submit() {
     </div>
 
     <button type="button" class="btn btn-primary" :disabled="!canSubmit" @click="submit">
-      Add sale
+      {{ isEdit ? 'Save changes' : 'Add sale' }}
     </button>
   </section>
 </template>
@@ -264,6 +284,12 @@ h2 {
 .total-row {
   margin: var(--space-3) 0;
   font-size: 1.05rem;
+}
+
+.client-static {
+  margin: 0;
+  padding: var(--space-2) 0;
+  font-weight: 600;
 }
 
 .stock-out {

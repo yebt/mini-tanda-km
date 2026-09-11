@@ -12,6 +12,7 @@ import {
   setDelivered,
   setInventoryQuantity,
   setTandaStatus,
+  updateSale,
   updateTanda,
   type CreateSaleResult,
   type SaleItemInput,
@@ -69,6 +70,10 @@ export const useTandasStore = defineStore('tandas', () => {
     setDelivered(saleId, delivered)
   }
 
+  function editSale(saleId: string, items: SaleItemInput[]): CreateSaleResult {
+    return updateSale(saleId, items)
+  }
+
   function removeSale(saleId: string): void {
     deleteSale(saleId)
   }
@@ -84,6 +89,7 @@ export const useTandasStore = defineStore('tandas', () => {
     setStock,
     addSale,
     toggleDelivered,
+    editSale,
     removeSale,
   }
 })
