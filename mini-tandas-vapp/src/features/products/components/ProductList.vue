@@ -2,10 +2,10 @@
 import { computed } from 'vue'
 
 import type { PriceRow, Product, SkuWithProduct } from '@shared/db/types'
+import ActionMenu from '@shared/ui/ActionMenu.vue'
 
 import { summarizePricing, summarizeVariations } from '../lib/productPricing'
 import ProductCard from './ProductCard.vue'
-import ActionMenu from './ActionMenu.vue'
 
 const props = defineProps<{
   items: { product: Product; skus: SkuWithProduct[]; priceRows: PriceRow[] }[]

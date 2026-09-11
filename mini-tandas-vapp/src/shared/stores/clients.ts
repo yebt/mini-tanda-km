@@ -4,7 +4,9 @@ import { defineStore } from 'pinia'
 import { dbVersion } from '@shared/db/database'
 import {
   addPayment,
+  clientInUse,
   createClient,
+  deleteClient,
   deletePayment,
   listClients,
   listPayments,
@@ -29,6 +31,17 @@ export const useClientsStore = defineStore('clients', () => {
 
   function addClient(name: string): string {
     return createClient(name)
+  }
+
+  function removeClient(id: string): { ok: true } | { ok: false; error: string } {
+    if (clientInUse(id)) {
+      return {
+        ok: false,
+        error: 'This client has sales or payments — it cannot be deleted.',
+      }
+    }
+    deleteClient(id)
+    return { ok: true }
   }
 
   function summaryFor(clientId: string): ClientSummary | null {
@@ -59,6 +72,7 @@ export const useClientsStore = defineStore('clients', () => {
     receivables,
     totalOwed,
     addClient,
+    removeClient,
     summaryFor,
     salesFor,
     paymentsFor,

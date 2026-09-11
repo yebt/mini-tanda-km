@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 import { formatMoney } from '@shared/db/format'
 import { useClientsStore } from '@shared/stores/clients'
@@ -10,17 +11,32 @@ const props = defineProps<{
   clientId: string
 }>()
 
+const route = useRoute()
 const clientsStore = useClientsStore()
 const tandasStore = useTandasStore()
 
 const amount = ref<number | null>(null)
+const amountInput = ref<HTMLInputElement | null>(null)
 const note = ref('')
-const targetSaleId = ref('')
+/** Pre-selected from ?pay=<saleId> when arriving via "Record payment" on a sale. */
+const initialSaleId = typeof route.query.pay === 'string' ? route.query.pay : ''
+const targetSaleId = ref(initialSaleId)
 const error = ref('')
 
 const unpaidSales = computed(() =>
   clientsStore.salesFor(props.clientId).filter((sale) => sale.balance > 0),
 )
+
+// Drop the selection once the sale is fully paid (or if the id is invalid).
+watch(unpaidSales, (list) => {
+  if (targetSaleId.value && !list.some((sale) => sale.id === targetSaleId.value)) {
+    targetSaleId.value = ''
+  }
+})
+
+if (initialSaleId) {
+  onMounted(() => amountInput.value?.focus())
+}
 
 function saleLabel(sale: SaleWithDetails): string {
   const tanda = tandasStore.tandas.find((t) => t.id === sale.tandaId)
@@ -56,6 +72,7 @@ function submit(): void {
       <label class="label" for="payment-amount">Amount</label>
       <input
         id="payment-amount"
+        ref="amountInput"
         v-model.number="amount"
         class="input"
         type="number"

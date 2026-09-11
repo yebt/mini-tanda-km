@@ -46,7 +46,10 @@ function goBack(): void {
       >
         <ChevronLeft :size="20" />
       </button>
-      <RouterLink to="/" class="brand">Mini Tanda</RouterLink>
+      <RouterLink to="/" class="brand">
+        <img src="/logo.svg" alt="" class="brand-logo" width="24" height="24" />
+        Mini Tanda
+      </RouterLink>
       <nav class="nav desktop-only">
         <RouterLink v-for="item in navItems" :key="item.to" :to="item.to" class="nav-link">
           {{ item.label }}
@@ -85,9 +88,17 @@ function goBack(): void {
 }
 
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   font-weight: 800;
   font-size: 1.1rem;
   color: var(--color-primary);
+}
+
+.brand-logo {
+  display: block;
+  border-radius: var(--radius-small);
 }
 
 .back-btn {

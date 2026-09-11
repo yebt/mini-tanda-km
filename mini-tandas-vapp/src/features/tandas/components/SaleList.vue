@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { Truck } from 'lucide-vue-next'
 
 import { formatDateTime, formatMoney } from '@shared/db/format'
 import type { SaleWithDetails, TandaStatus } from '@shared/db/types'
 import { useTandasStore } from '@shared/stores/tandas'
+import ActionMenu from '@shared/ui/ActionMenu.vue'
 import { confirmDialog } from '@shared/ui/useConfirm'
 
 const props = defineProps<{ tandaId: string; status: TandaStatus }>()
 
 const tandasStore = useTandasStore()
+const router = useRouter()
 
 const sales = computed(() => tandasStore.salesFor(props.tandaId))
 
@@ -18,6 +21,11 @@ const canMarkDelivered = computed(() => props.status === 'ready' || props.status
 
 function onDelivered(sale: SaleWithDetails, event: Event) {
   tandasStore.toggleDelivered(sale.id, (event.target as HTMLInputElement).checked)
+}
+
+/** Jump to the client's ledger with this sale pre-selected in the payment form. */
+function recordPayment(sale: SaleWithDetails) {
+  router.push({ path: `/clients/${sale.client.id}`, query: { pay: sale.id } })
 }
 
 async function remove(sale: SaleWithDetails) {
@@ -34,30 +42,27 @@ async function remove(sale: SaleWithDetails) {
     <p v-if="sales.length === 0" class="card empty-state">No sales yet.</p>
 
     <article v-for="sale in sales" :key="sale.id" class="card sale-card">
-      <div class="row-between sale-head">
+      <header class="sale-head">
         <div class="sale-client">
           <strong class="sale-client-name">{{ sale.client.name }}</strong>
           <span class="muted">{{ formatDateTime(sale.createdAt) }}</span>
         </div>
-        <div class="row sale-actions">
-          <span v-if="sale.balance > 0" class="badge badge-danger">
-            Pending {{ formatMoney(sale.balance) }}
-          </span>
-          <span v-else class="badge badge-success">Paid</span>
-          <button type="button" class="btn btn-ghost btn-danger" @click="remove(sale)">
-            Delete
-          </button>
-        </div>
-      </div>
+        <ActionMenu
+          :show-edit="false"
+          :show-pay="sale.balance > 0"
+          @pay="recordPayment(sale)"
+          @remove="remove(sale)"
+        />
+      </header>
 
       <ul class="sale-items">
-        <li v-for="line in sale.items" :key="line.skuId" class="row-between sale-item">
+        <li v-for="line in sale.items" :key="line.skuId" class="sale-item">
           <span class="sale-item-label">{{ line.quantity }} × {{ line.label }}</span>
-          <span class="money">{{ formatMoney(line.lineTotal) }}</span>
+          <span class="money sale-item-amount">{{ formatMoney(line.lineTotal) }}</span>
         </li>
       </ul>
 
-      <div class="row-between total-row">
+      <footer class="sale-foot">
         <label
           class="delivered-toggle"
           :class="{ 'is-on': sale.delivered, 'is-disabled': !canMarkDelivered }"
@@ -78,8 +83,15 @@ async function remove(sale: SaleWithDetails) {
             {{ sale.delivered ? 'Delivered' : 'Mark delivered' }}
           </span>
         </label>
-        <span class="money sale-total">{{ formatMoney(sale.total) }}</span>
-      </div>
+
+        <div class="sale-amounts">
+          <span v-if="sale.balance > 0" class="badge badge-danger">
+            Pending {{ formatMoney(sale.balance) }}
+          </span>
+          <span v-else class="badge badge-success">Paid</span>
+          <span class="money sale-total">{{ formatMoney(sale.total) }}</span>
+        </div>
+      </footer>
     </article>
   </section>
 </template>
@@ -89,37 +101,57 @@ h2 {
   margin-bottom: var(--space-3);
 }
 
+.sale-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+@media (min-width: 721px) {
+  .sale-card {
+    transition: border-color 160ms ease;
+  }
+
+  .sale-card:hover,
+  .sale-card:focus-within {
+    border-color: var(--color-primary);
+  }
+}
+
 .sale-head {
+  display: flex;
   align-items: flex-start;
-  flex-wrap: wrap;
   gap: var(--space-2);
 }
 
 .sale-client {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 0.1rem;
   min-width: 0;
 }
 
 .sale-client-name {
+  font-size: 1.05rem;
   overflow-wrap: anywhere;
-}
-
-.sale-actions {
-  flex-shrink: 0;
-  margin-left: auto;
 }
 
 .sale-items {
   list-style: none;
-  margin: var(--space-3) 0 0;
+  margin: 0;
   padding: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .sale-item {
-  padding: var(--space-1) 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
   gap: var(--space-3);
+  padding: var(--space-1) 0;
 }
 
 .sale-item + .sale-item {
@@ -131,14 +163,33 @@ h2 {
   overflow-wrap: anywhere;
 }
 
-.total-row {
-  margin-top: var(--space-2);
-  padding-top: var(--space-2);
+.sale-item-amount {
+  flex-shrink: 0;
+  color: var(--color-ink-soft);
+}
+
+.sale-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-1);
+  padding-top: var(--space-3);
   border-top: 1px solid var(--color-border);
 }
 
+.sale-amounts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  margin-left: auto;
+}
+
 .sale-total {
-  font-size: 1.05rem;
+  font-size: 1.15rem;
+  font-weight: 700;
 }
 
 /* ── Delivered toggle ─────────────────────────────────────────────────── */

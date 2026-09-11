@@ -3,9 +3,22 @@ import { ref } from 'vue'
 
 import { MoreVertical } from 'lucide-vue-next'
 
+const props = withDefaults(
+  defineProps<{
+    /** Show the "Edit" item. Default true. */
+    showEdit?: boolean
+    /** Show the "Delete" item. Default true. */
+    showRemove?: boolean
+    /** Show a "Record payment" item. Default false. */
+    showPay?: boolean
+  }>(),
+  { showEdit: true, showRemove: true, showPay: false },
+)
+
 const emit = defineEmits<{
   edit: []
   remove: []
+  pay: []
 }>()
 
 const open = ref(false)
@@ -22,6 +35,11 @@ function onEdit() {
 function onRemove() {
   close()
   emit('remove')
+}
+
+function onPay() {
+  close()
+  emit('pay')
 }
 </script>
 
@@ -40,8 +58,19 @@ function onRemove() {
     </button>
     <div v-if="open" class="menu-backdrop" @click="close" />
     <div v-if="open" class="menu" role="menu">
-      <button type="button" role="menuitem" class="menu-item" @click="onEdit">Edit</button>
-      <button type="button" role="menuitem" class="menu-item menu-item-danger" @click="onRemove">
+      <button v-if="props.showPay" type="button" role="menuitem" class="menu-item" @click="onPay">
+        Record payment
+      </button>
+      <button v-if="props.showEdit" type="button" role="menuitem" class="menu-item" @click="onEdit">
+        Edit
+      </button>
+      <button
+        v-if="props.showRemove"
+        type="button"
+        role="menuitem"
+        class="menu-item menu-item-danger"
+        @click="onRemove"
+      >
         Delete
       </button>
     </div>

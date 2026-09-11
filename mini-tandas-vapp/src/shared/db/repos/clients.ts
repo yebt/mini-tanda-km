@@ -53,6 +53,17 @@ export function deleteClient(id: string): void {
   run('DELETE FROM clients WHERE id = ?', [id])
 }
 
+/** True when the client has sales or payments (FK-protected from deletion). */
+export function clientInUse(id: string): boolean {
+  const row = get<{ n: number }>(
+    `SELECT
+       (SELECT COUNT(*) FROM sales WHERE client_id = ?) +
+       (SELECT COUNT(*) FROM payments WHERE client_id = ?) AS n`,
+    [id, id],
+  )
+  return (row?.n ?? 0) > 0
+}
+
 export function listPayments(clientId?: string): PaymentWithContext[] {
   const rows = all<{
     id: string

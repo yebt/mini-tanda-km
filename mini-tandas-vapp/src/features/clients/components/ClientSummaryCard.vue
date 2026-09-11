@@ -3,9 +3,14 @@ import { computed } from 'vue'
 
 import { formatDate, formatMoney } from '@shared/db/format'
 import type { ClientSummary } from '@shared/db/types'
+import ActionMenu from '@shared/ui/ActionMenu.vue'
 
 const props = defineProps<{
   summary: ClientSummary
+}>()
+
+const emit = defineEmits<{
+  remove: []
 }>()
 
 const owesMoney = computed(() => props.summary.balance > 0)
@@ -17,8 +22,11 @@ const balanceLabel = computed(() =>
 <template>
   <section class="card">
     <div class="row-between">
-      <h1>{{ summary.name }}</h1>
-      <span class="muted">Client since {{ formatDate(summary.createdAt) }}</span>
+      <div class="row summary-head">
+        <h1>{{ summary.name }}</h1>
+        <span class="muted">Client since {{ formatDate(summary.createdAt) }}</span>
+      </div>
+      <ActionMenu :show-edit="false" @remove="emit('remove')" />
     </div>
     <div class="row-wrap summary-stats">
       <div class="stat">
@@ -41,6 +49,15 @@ const balanceLabel = computed(() =>
 </template>
 
 <style scoped>
+.summary-head {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.summary-head h1 {
+  margin-bottom: 0;
+}
+
 .summary-stats {
   gap: var(--space-6);
 }

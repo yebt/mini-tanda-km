@@ -4,8 +4,9 @@ import { computed } from 'vue'
 import { formatMoney } from '@shared/db/format'
 import type { PriceRow, Product } from '@shared/db/types'
 
+import ActionMenu from '@shared/ui/ActionMenu.vue'
+
 import { summarizePricing } from '../lib/productPricing'
-import ActionMenu from './ActionMenu.vue'
 
 const props = defineProps<{
   product: Product
