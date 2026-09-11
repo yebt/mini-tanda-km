@@ -19,6 +19,12 @@ export interface Product {
   priceMode: PriceMode
   /** Global price — set when priceMode is 'global' or the product has no variations. */
   price: number | null
+  /**
+   * Ids of the variations that drive pricing when priceMode is 'per_sku'.
+   * May be any subset (e.g. only SIZE, or SIZE + PACKAGING — not FLAVOR).
+   * Empty means the subset has not been chosen yet.
+   */
+  priceVariationIds: string[]
   variations: Variation[]
 }
 
@@ -27,8 +33,17 @@ export interface Sku {
   productId: string
   /** Option ids defining this combination (sorted for a stable key). */
   optionIds: string[]
-  /** Per-SKU price — used when the product's priceMode is 'per_sku'. */
+  /** @deprecated legacy column; per-SKU prices live in PriceRow. */
   price: number | null
+}
+
+/** A price keyed by a combination of options from the pricing variations. */
+export interface PriceRow {
+  id: string
+  productId: string
+  /** Option ids from the product's pricing variations (sorted). */
+  optionIds: string[]
+  price: number
 }
 
 export type TandaType = 'scheduled' | 'anticipated'
@@ -129,14 +144,6 @@ export interface SkuWithProduct extends Sku {
   productName: string
   label: string
   price: number | null
-}
-
-/** Effective price for a SKU given the product's price mode. */
-export function priceForSku(
-  product: Pick<Product, 'priceMode' | 'price'>,
-  sku: Pick<Sku, 'price'>,
-): number | null {
-  return product.priceMode === 'global' ? product.price : sku.price
 }
 
 export function skuLabel(

@@ -1,5 +1,5 @@
 import { all, get, run, transaction, uid, nowIso } from '../database'
-import { getProduct, getSku, listSkus } from './products'
+import { getProduct, getSku, listSkus, resolvePrice } from './products'
 import { getClient } from './clients'
 import type {
   InventoryEntry,
@@ -10,7 +10,7 @@ import type {
   TandaSummary,
   TandaType,
 } from '../types'
-import { priceForSku, skuLabel } from '../types'
+import { skuLabel } from '../types'
 
 interface TandaRow {
   id: string
@@ -270,7 +270,7 @@ export function createSale(input: {
     const sku = getSku(item.skuId)
     const product = sku ? getProduct(sku.productId) : null
     if (!sku || !product) return { error: 'Unknown product' } as const
-    const price = priceForSku(product, sku)
+    const price = resolvePrice(product, sku)
     if (price === null) return { error: `"${product.name}" has no price set` } as const
     return { sku, quantity: item.quantity, unitPrice: price } as const
   })

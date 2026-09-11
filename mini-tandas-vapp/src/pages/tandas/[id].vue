@@ -13,6 +13,17 @@ const route = useRoute('/tandas/[id]')
 const tandasStore = useTandasStore()
 
 const tanda = computed(() => tandasStore.tandas.find((t) => t.id === route.params.id) ?? null)
+
+/**
+ * Scheduled tandas take pre-orders while open; anticipated tandas sell
+ * against the batch inventory once production is done (ready).
+ */
+const canSell = computed(() => {
+  if (!tanda.value) return false
+  return tanda.value.type === 'scheduled'
+    ? tanda.value.status === 'open'
+    : tanda.value.status === 'ready'
+})
 </script>
 
 <template>
@@ -25,7 +36,7 @@ const tanda = computed(() => tandasStore.tandas.find((t) => t.id === route.param
     <TandaHeader :tanda="tanda" />
     <StatusFlow :tanda="tanda" />
     <InventoryEditor v-if="tanda.type === 'anticipated'" :tanda="tanda" />
-    <SaleForm v-if="tanda.status === 'open'" :tanda-id="tanda.id" :type="tanda.type" />
+    <SaleForm v-if="canSell" :tanda-id="tanda.id" :type="tanda.type" />
     <SaleList :tanda-id="tanda.id" :status="tanda.status" />
   </template>
 </template>

@@ -12,7 +12,9 @@ import {
   listSkusWithProducts,
   productInUse,
   removeOption,
-  setSkuPrice,
+  resolvePrice,
+  setPriceRow,
+  setPricingVariations,
 } from '../repos/products'
 import {
   createSale,
@@ -25,7 +27,6 @@ import {
   setInventoryQuantity,
   setTandaStatus,
 } from '../repos/tandas'
-import { priceForSku } from '../types'
 
 let db: Database
 
@@ -49,7 +50,15 @@ function makeCake(priceMode: 'global' | 'per_sku' = 'per_sku') {
   const redVelvet = addOption(flavorId, 'Red Velvet')
   const personal = addOption(sizeId, 'Personal')
   const family = addOption(sizeId, 'Family')
-  return { productId, coffee, redVelvet, personal, family }
+  return { productId, flavorId, sizeId, coffee, redVelvet, personal, family }
+}
+
+/** Price the cake by SIZE only: every flavor shares the size price. */
+function priceBySize(productId: string, sizeId: string, prices: Record<string, number>) {
+  setPricingVariations(productId, [sizeId])
+  for (const [optionId, price] of Object.entries(prices)) {
+    setPriceRow(productId, [optionId], price)
+  }
 }
 
 describe('products and SKUs', () => {
@@ -65,26 +74,71 @@ describe('products and SKUs', () => {
     ])
   })
 
-  it('resolves price by price mode and preserves prices when options grow', () => {
-    const { productId, coffee, personal } = makeCake()
-    const skus = () => listSkusWithProducts().filter((sku) => sku.productId === productId)
+  it('prices every SKU from a single pricing variation (SIZE only)', () => {
+    const { productId, sizeId, coffee, redVelvet, personal, family } = makeCake()
+    priceBySize(productId, sizeId, { [personal]: 80, [family]: 120 })
 
-    const personalSkus = skus().filter((sku) => sku.optionIds.includes(personal))
-    for (const sku of personalSkus) setSkuPrice(sku.id, 80)
+    const priceOf = (...options: string[]) => {
+      const product = listProducts().find((p) => p.id === productId)!
+      const sku = listSkusWithProducts().find(
+        (s) => s.productId === productId && options.every((o) => s.optionIds.includes(o)),
+      )!
+      return resolvePrice(product, sku)
+    }
 
-    // Adding an option creates new SKUs but keeps existing prices.
-    const flavorId = listProducts()[0]!.variations[0]!.id
+    expect(priceOf(personal, coffee)).toBe(80)
+    expect(priceOf(personal, redVelvet)).toBe(80)
+    expect(priceOf(family, coffee)).toBe(120)
+  })
+
+  it('covers new options automatically when priced by SIZE only', () => {
+    const { productId, flavorId, sizeId, personal } = makeCake()
+    priceBySize(productId, sizeId, { [personal]: 80 })
+
     const chocolate = addOption(flavorId, 'Chocolate')
+    const product = listProducts().find((p) => p.id === productId)!
+    const chocoPersonal = listSkusWithProducts().find(
+      (s) =>
+        s.productId === productId &&
+        s.optionIds.includes(chocolate) &&
+        s.optionIds.includes(personal),
+    )!
+    expect(resolvePrice(product, chocoPersonal)).toBe(80)
+  })
 
-    const stillPriced = skus().filter(
-      (sku) => sku.optionIds.includes(personal) && sku.optionIds.includes(coffee),
-    )
-    expect(stillPriced).toHaveLength(1)
-    expect(stillPriced[0]!.price).toBe(80)
+  it('requires explicit rows for every combo when priced by two variations', () => {
+    const { productId, flavorId, sizeId, coffee, redVelvet, personal, family } = makeCake()
+    setPricingVariations(productId, [sizeId, flavorId])
+    setPriceRow(productId, [personal, coffee], 90)
+    setPriceRow(productId, [family, redVelvet], 150)
 
-    const newSkus = skus().filter((sku) => sku.optionIds.includes(chocolate))
-    expect(newSkus).toHaveLength(2)
-    expect(newSkus.every((sku) => sku.price === null)).toBe(true)
+    const product = listProducts().find((p) => p.id === productId)!
+    const find = (...options: string[]) =>
+      listSkusWithProducts().find(
+        (s) => s.productId === productId && options.every((o) => s.optionIds.includes(o)),
+      )!
+
+    expect(resolvePrice(product, find(personal, coffee))).toBe(90)
+    expect(resolvePrice(product, find(family, redVelvet))).toBe(150)
+    // No row for family × coffee.
+    expect(resolvePrice(product, find(family, coffee))).toBeNull()
+  })
+
+  it('prunes price rows when the pricing variations change', () => {
+    const { productId, flavorId, sizeId, coffee, personal } = makeCake()
+    setPricingVariations(productId, [sizeId, flavorId])
+    setPriceRow(productId, [personal, coffee], 90)
+
+    // Back to SIZE-only: the flavor-specific row is dropped.
+    setPricingVariations(productId, [sizeId])
+    expect(listProducts().find((p) => p.id === productId)!.priceVariationIds).toEqual([sizeId])
+
+    const product = listProducts().find((p) => p.id === productId)!
+    const coffeePersonal = listSkusWithProducts().find(
+      (s) =>
+        s.productId === productId && s.optionIds.includes(coffee) && s.optionIds.includes(personal),
+    )!
+    expect(resolvePrice(product, coffeePersonal)).toBeNull()
   })
 
   it('removes SKUs when an option is removed', () => {
@@ -98,7 +152,7 @@ describe('products and SKUs', () => {
     const { productId } = makeCake('global')
     const product = listProducts().find((p) => p.id === productId)!
     for (const sku of listSkusWithProducts().filter((sku) => sku.productId === productId)) {
-      expect(priceForSku(product, sku)).toBe(100)
+      expect(resolvePrice(product, sku)).toBe(100)
     }
   })
 
@@ -112,16 +166,21 @@ describe('products and SKUs', () => {
 
 describe('scheduled tandas', () => {
   function setup() {
-    const { productId, redVelvet, personal, coffee, family } = makeCake()
+    const { productId, sizeId, redVelvet, personal, coffee, family } = makeCake()
+    // Priced by SIZE only; family intentionally unpriced for the refusal test.
+    priceBySize(productId, sizeId, { [personal]: 90 })
     const personalRv = listSkusWithProducts().find(
       (sku) =>
         sku.productId === productId &&
         sku.optionIds.includes(redVelvet) &&
         sku.optionIds.includes(personal),
     )!
-    setSkuPrice(personalRv.id, 90)
     const clientId = createClient('María')
-    const tandaId = createTanda({ name: 'Tanda 2026-09-20', date: '2026-09-20', type: 'scheduled' })
+    const tandaId = createTanda({
+      name: 'Tanda 2026-09-20',
+      date: '2026-09-20',
+      type: 'scheduled',
+    })
     return { productId, personalRv, coffee, family, clientId, tandaId }
   }
 
@@ -189,9 +248,9 @@ describe('scheduled tandas', () => {
 
 describe('anticipated tandas', () => {
   function setup() {
-    const { productId, redVelvet, personal, family, coffee } = makeCake()
+    const { productId, sizeId, redVelvet, personal, family, coffee } = makeCake()
+    priceBySize(productId, sizeId, { [personal]: 100, [family]: 100 })
     const skus = listSkusWithProducts().filter((sku) => sku.productId === productId)
-    for (const sku of skus) setSkuPrice(sku.id, 100)
     const rvPersonal = skus.find(
       (s) => s.optionIds.includes(redVelvet) && s.optionIds.includes(personal),
     )!
@@ -258,17 +317,48 @@ describe('anticipated tandas', () => {
   })
 })
 
+describe('database migration v0 → v1', () => {
+  it('moves legacy skus.price into sku_prices without losing data', async () => {
+    const SQL = await initSqlJs()
+    const legacy = new SQL.Database()
+    // Recreate the pre-v1 schema shape.
+    legacy.run(`
+      CREATE TABLE products (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT,
+        photo TEXT, price_mode TEXT NOT NULL DEFAULT 'global', price REAL);
+      CREATE TABLE variations (id TEXT PRIMARY KEY, product_id TEXT NOT NULL, name TEXT NOT NULL,
+        position INTEGER NOT NULL DEFAULT 0);
+      CREATE TABLE variation_options (id TEXT PRIMARY KEY, variation_id TEXT NOT NULL,
+        label TEXT NOT NULL, position INTEGER NOT NULL DEFAULT 0);
+      CREATE TABLE skus (id TEXT PRIMARY KEY, product_id TEXT NOT NULL, option_ids TEXT NOT NULL,
+        price REAL);
+      INSERT INTO products VALUES ('p1', 'Cake', NULL, NULL, 'per_sku', NULL);
+      INSERT INTO variations VALUES ('v1', 'p1', 'SIZE', 0);
+      INSERT INTO variation_options VALUES ('o1', 'v1', 'Personal', 0), ('o2', 'v1', 'Family', 1);
+      INSERT INTO skus VALUES ('s1', 'p1', '["o1"]', 80), ('s2', 'p1', '["o2"]', 120);
+    `)
+
+    openWithInstance(legacy)
+
+    // Prices survived the migration and resolve once SIZE drives pricing.
+    setPricingVariations('p1', ['v1'])
+    const product = listProducts().find((p) => p.id === 'p1')!
+    const byOption = (optionId: string) =>
+      listSkusWithProducts().find((s) => s.productId === 'p1' && s.optionIds.includes(optionId))!
+    expect(resolvePrice(product, byOption('o1'))).toBe(80)
+    expect(resolvePrice(product, byOption('o2'))).toBe(120)
+  })
+})
+
 describe('clients and payments', () => {
   it('combines per-sale payments and general abonos into one balance', () => {
-    const { personal, redVelvet } = makeCake()
-    const productId = listProducts()[0]!.id
+    const { productId, sizeId, personal, redVelvet } = makeCake()
+    priceBySize(productId, sizeId, { [personal]: 200 })
     const rvPersonal = listSkusWithProducts().find(
       (sku) =>
         sku.productId === productId &&
         sku.optionIds.includes(redVelvet) &&
         sku.optionIds.includes(personal),
     )!
-    setSkuPrice(rvPersonal.id, 200)
     const clientId = createClient('Ana')
     const tandaId = createTanda({ name: 'T', date: '2026-09-10', type: 'scheduled' })
     const saleResult = createSale({

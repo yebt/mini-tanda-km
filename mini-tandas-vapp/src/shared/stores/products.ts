@@ -7,16 +7,18 @@ import {
   addVariation,
   createProduct,
   deleteProduct,
+  listPriceRows,
   listProducts,
   listSkusWithProducts,
   productInUse,
   removeOption,
   removeVariation,
-  setSkuPrice,
+  setPriceRow,
+  setPricingVariations,
   updateProduct,
   type ProductInput,
 } from '@shared/db/repos/products'
-import type { Product, SkuWithProduct } from '@shared/db/types'
+import type { PriceRow, Product, SkuWithProduct } from '@shared/db/types'
 
 export const useProductsStore = defineStore('products', () => {
   // Reading dbVersion keeps these computeds re-evaluating after every write.
@@ -30,10 +32,16 @@ export const useProductsStore = defineStore('products', () => {
     return listSkusWithProducts()
   })
 
+  const priceRows = computed<PriceRow[]>(() => {
+    void dbVersion.value
+    return listPriceRows()
+  })
+
   const catalog = computed(() =>
     products.value.map((product) => ({
       product,
       skus: skus.value.filter((sku) => sku.productId === product.id),
+      priceRows: priceRows.value.filter((row) => row.productId === product.id),
     })),
   )
 
@@ -59,6 +67,7 @@ export const useProductsStore = defineStore('products', () => {
   return {
     products,
     skus,
+    priceRows,
     catalog,
     saveProduct,
     removeProduct,
@@ -66,6 +75,7 @@ export const useProductsStore = defineStore('products', () => {
     removeVariation,
     addOption,
     removeOption,
-    setSkuPrice,
+    setPriceRow,
+    setPricingVariations,
   }
 })

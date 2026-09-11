@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 
+import { confirmDialog } from '@shared/ui/useConfirm'
 import { useProductsStore } from '@shared/stores/products'
 import type { Product, Variation, VariationOption } from '@shared/db/types'
-
-import SkuPriceTable from './SkuPriceTable.vue'
 
 const props = defineProps<{
   /** Saved product — variations require a persisted id. */
@@ -12,10 +11,6 @@ const props = defineProps<{
 }>()
 
 const store = useProductsStore()
-
-const skus = computed(
-  () => store.catalog.find((entry) => entry.product.id === props.product.id)?.skus ?? [],
-)
 
 const newVariationName = ref('')
 const optionDrafts = ref<Record<string, string>>({})
@@ -36,8 +31,12 @@ function addVariation() {
   newVariationName.value = ''
 }
 
-function removeVariation(variation: Variation) {
-  if (!confirm(`Remove variation "${variation.name}"? SKUs that use it will be deleted.`)) return
+async function removeVariation(variation: Variation) {
+  const ok = await confirmDialog(
+    `Remove variation "${variation.name}"? SKUs that use it will be deleted.`,
+    'Remove variation',
+  )
+  if (!ok) return
   store.removeVariation(variation.id)
 }
 
@@ -48,13 +47,12 @@ function addOption(variation: Variation) {
   optionDrafts.value = { ...optionDrafts.value, [variation.id]: '' }
 }
 
-function removeOption(variation: Variation, option: VariationOption) {
-  if (
-    !confirm(
-      `Remove option "${option.label}" from ${variation.name}? SKUs that use it will be deleted.`,
-    )
+async function removeOption(variation: Variation, option: VariationOption) {
+  const ok = await confirmDialog(
+    `Remove option "${option.label}" from ${variation.name}? SKUs that use it will be deleted.`,
+    'Remove option',
   )
-    return
+  if (!ok) return
   store.removeOption(option.id)
 }
 </script>
@@ -113,9 +111,6 @@ function removeOption(variation: Variation, option: VariationOption) {
       />
       <button type="button" class="btn" @click="addVariation">Add variation</button>
     </div>
-
-    <SkuPriceTable v-if="product.priceMode === 'per_sku'" :skus="skus" />
-    <p v-else class="muted sku-note">SKUs sell at the global product price.</p>
   </section>
 </template>
 
@@ -168,10 +163,6 @@ function removeOption(variation: Variation, option: VariationOption) {
 
 .variation-add {
   max-width: 380px;
-  margin-bottom: var(--space-4);
-}
-
-.sku-note {
   margin-bottom: 0;
 }
 </style>

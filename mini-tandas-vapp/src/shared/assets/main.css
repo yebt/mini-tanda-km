@@ -252,3 +252,47 @@ a {
   color: var(--color-ink-soft);
   padding: var(--space-8) var(--space-4);
 }
+
+/* ── Responsive helpers ────────────────────────────────────────────────── */
+/* Mobile breakpoint: 720px. Nav on mobile is a static bottom bar —
+   --nav-bottom must match its height. */
+:root {
+  --nav-bottom-height: 58px;
+}
+
+@media (max-width: 720px) {
+  .desktop-only {
+    display: none !important;
+  }
+}
+
+@media (min-width: 721px) {
+  .mobile-only {
+    display: none !important;
+  }
+}
+
+/* ── Floating action button (mobile create buttons) ───────────────────── */
+.fab {
+  position: fixed;
+  right: var(--space-4);
+  bottom: calc(var(--nav-bottom-height) + var(--space-4));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgb(43 33 24 / 30%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.fab:hover {
+  background: #9c4719;
+}

@@ -1,12 +1,16 @@
-export const CURRENCY = 'MXN'
+import { currency } from './settings'
 
-const moneyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: CURRENCY,
-})
+export { SUPPORTED_CURRENCIES } from './settings'
 
 export function formatMoney(amount: number): string {
-  return moneyFormatter.format(amount)
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency.value,
+    }).format(amount)
+  } catch {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'MXN' }).format(amount)
+  }
 }
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {

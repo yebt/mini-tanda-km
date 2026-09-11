@@ -2,11 +2,14 @@
 import { computed } from 'vue'
 
 import { formatMoney } from '@shared/db/format'
-import type { Product, SkuWithProduct } from '@shared/db/types'
+import type { PriceRow, Product } from '@shared/db/types'
+
+import { summarizePricing } from '../lib/productPricing'
+import ActionMenu from './ActionMenu.vue'
 
 const props = defineProps<{
   product: Product
-  skus: SkuWithProduct[]
+  priceRows: PriceRow[]
 }>()
 
 const emit = defineEmits<{
@@ -14,14 +17,28 @@ const emit = defineEmits<{
   remove: [product: Product]
 }>()
 
+const initial = computed(() => props.product.name.charAt(0).toUpperCase())
+
+const modeLabel = computed(() =>
+  props.product.priceMode === 'global' ? 'Global price' : 'Price per SKU',
+)
+
+const modeClass = computed(() =>
+  props.product.priceMode === 'global' ? 'badge-info' : 'badge-neutral',
+)
+
+const pricing = computed(() => summarizePricing(props.product, props.priceRows))
+
 const priceSummary = computed(() => {
-  if (props.product.priceMode === 'global') {
-    return props.product.price != null ? formatMoney(props.product.price) : 'No price set'
-  }
-  if (props.skus.length === 0) return 'Add variations to set SKU prices'
-  const priced = props.skus.filter((sku) => sku.price != null).length
-  return `Per SKU — ${priced} of ${props.skus.length} priced`
+  if (props.product.priceMode === 'global') return pricing.value.heading
+  return pricing.value.hasPrices && pricing.value.minPrice != null
+    ? `From ${formatMoney(pricing.value.minPrice)}`
+    : 'No prices'
 })
+
+const priceDetail = computed(() =>
+  props.product.priceMode === 'per_sku' && pricing.value.comboCount > 0 ? pricing.value.detail : '',
+)
 
 const variationBadges = computed(() =>
   props.product.variations.map((variation) => ({
@@ -37,20 +54,19 @@ const variationBadges = computed(() =>
   <article class="card product-card">
     <div class="product-photo" :class="{ 'has-photo': product.photo }">
       <img v-if="product.photo" :src="product.photo" :alt="product.name" />
-      <span v-else>{{ product.name.charAt(0).toUpperCase() }}</span>
+      <span v-else>{{ initial }}</span>
     </div>
     <div class="product-body">
       <div class="row-between">
         <h3 class="product-name">{{ product.name }}</h3>
-        <span
-          class="badge"
-          :class="product.priceMode === 'global' ? 'badge-info' : 'badge-neutral'"
-        >
-          {{ product.priceMode === 'global' ? 'Global price' : 'Price per SKU' }}
-        </span>
+        <ActionMenu @edit="emit('edit', product)" @remove="emit('remove', product)" />
+      </div>
+      <div class="row-wrap card-meta">
+        <span class="badge" :class="modeClass">{{ modeLabel }}</span>
+        <span class="money">{{ priceSummary }}</span>
+        <span v-if="priceDetail" class="muted">{{ priceDetail }}</span>
       </div>
       <p v-if="product.description" class="muted product-description">{{ product.description }}</p>
-      <p class="money">{{ priceSummary }}</p>
       <div v-if="variationBadges.length" class="row-wrap">
         <span v-for="variation in variationBadges" :key="variation.id" class="variation-chip">
           <strong>{{ variation.name }}</strong>
@@ -59,12 +75,6 @@ const variationBadges = computed(() =>
           }}</span>
         </span>
       </div>
-      <div class="row product-actions">
-        <button type="button" class="btn" @click="emit('edit', product)">Edit</button>
-        <button type="button" class="btn btn-danger" @click="emit('remove', product)">
-          Delete
-        </button>
-      </div>
     </div>
   </article>
 </template>
@@ -72,9 +82,10 @@ const variationBadges = computed(() =>
 <style scoped>
 .product-card {
   display: flex;
-  gap: var(--space-4);
+  gap: var(--space-3);
   align-items: flex-start;
   margin-bottom: 0;
+  padding: var(--space-4);
 }
 
 .product-photo {
@@ -109,11 +120,16 @@ const variationBadges = computed(() =>
 }
 
 .product-name {
-  margin-bottom: var(--space-1);
+  margin-bottom: 0;
+}
+
+.card-meta {
+  margin-top: var(--space-2);
+  align-items: baseline;
 }
 
 .product-description {
-  margin: 0 0 var(--space-1);
+  margin: var(--space-2) 0 0;
 }
 
 .variation-chip {
@@ -124,9 +140,6 @@ const variationBadges = computed(() =>
   border: 1px solid var(--color-border);
   border-radius: 999px;
   font-size: 0.8rem;
-}
-
-.product-actions {
-  margin-top: var(--space-3);
+  margin-top: var(--space-2);
 }
 </style>

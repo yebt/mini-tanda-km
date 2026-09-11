@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
+import { confirmDialog } from '@shared/ui/useConfirm'
 import { useProductsStore } from '@shared/stores/products'
 import type { Product } from '@shared/db/types'
 
@@ -39,8 +40,9 @@ function onCancel() {
   editingId.value = null
 }
 
-function onRemove(product: Product) {
-  if (!confirm(`Delete "${product.name}"? This cannot be undone.`)) return
+async function onRemove(product: Product) {
+  const ok = await confirmDialog(`Delete "${product.name}"? This cannot be undone.`, 'Delete')
+  if (!ok) return
   const result = store.removeProduct(product.id)
   removeError.value = result.ok ? '' : result.error
   if (result.ok && editingId.value === product.id) {
@@ -53,7 +55,7 @@ function onRemove(product: Product) {
 <template>
   <div class="row-between page-header">
     <h1>Products</h1>
-    <button v-if="!formOpen" type="button" class="btn btn-primary" @click="openNew">
+    <button v-if="!formOpen" type="button" class="btn btn-primary desktop-only" @click="openNew">
       New product
     </button>
   </div>
@@ -67,6 +69,16 @@ function onRemove(product: Product) {
     </p>
     <ProductList v-else :items="store.catalog" @edit="openEdit" @remove="onRemove" />
   </template>
+
+  <button
+    v-if="!formOpen"
+    type="button"
+    class="fab mobile-only"
+    aria-label="New product"
+    @click="openNew"
+  >
+    +
+  </button>
 </template>
 
 <style scoped>

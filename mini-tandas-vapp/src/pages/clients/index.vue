@@ -7,6 +7,7 @@ import { useClientsStore } from '@shared/stores/clients'
 const clientsStore = useClientsStore()
 
 const name = ref('')
+const nameInput = ref<HTMLInputElement | null>(null)
 const error = ref('')
 
 const sortedClients = computed(() =>
@@ -25,6 +26,10 @@ function submit(): void {
   clientsStore.addClient(value)
   name.value = ''
 }
+
+function focusNameInput(): void {
+  nameInput.value?.focus()
+}
 </script>
 
 <template>
@@ -35,6 +40,7 @@ function submit(): void {
         <label class="label" for="client-name">New client</label>
         <input
           id="client-name"
+          ref="nameInput"
           v-model="name"
           class="input"
           type="text"
@@ -46,9 +52,11 @@ function submit(): void {
     <p v-if="error" class="error-text">{{ error }}</p>
   </section>
 
+  <button class="fab mobile-only" aria-label="Add client" @click="focusNameInput">+</button>
+
   <section class="card">
     <p v-if="sortedClients.length === 0" class="empty-state">No clients yet.</p>
-    <table v-else class="table">
+    <table v-else class="desktop-only table">
       <thead>
         <tr>
           <th>Name</th>
@@ -72,6 +80,23 @@ function submit(): void {
         </tr>
       </tbody>
     </table>
+
+    <ul v-if="sortedClients.length > 0" class="client-list mobile-only">
+      <li v-for="client in sortedClients" :key="client.id">
+        <RouterLink :to="`/clients/${client.id}`" class="client-item">
+          <div class="client-main">
+            <span class="client-name">{{ client.name }}</span>
+            <span class="muted">since {{ formatDate(client.createdAt) }}</span>
+          </div>
+          <div class="client-figures">
+            <span class="money" :class="{ 'money-negative': client.balance > 0 }">
+              {{ formatMoney(client.balance) }}
+            </span>
+            <span class="muted">owed</span>
+          </div>
+        </RouterLink>
+      </li>
+    </ul>
   </section>
 </template>
 
@@ -87,5 +112,40 @@ function submit(): void {
 
 .new-client-button {
   margin-bottom: 1px;
+}
+
+.client-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.client-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-1);
+  border-bottom: 1px solid var(--color-border);
+  color: inherit;
+}
+
+.client-item:last-child {
+  border-bottom: none;
+}
+
+.client-main {
+  display: flex;
+  flex-direction: column;
+}
+
+.client-name {
+  font-weight: 700;
+}
+
+.client-figures {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 }
 </style>

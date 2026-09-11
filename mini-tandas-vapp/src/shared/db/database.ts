@@ -46,7 +46,10 @@ CREATE TABLE IF NOT EXISTS products (
   description TEXT,
   photo TEXT,
   price_mode TEXT NOT NULL DEFAULT 'global' CHECK (price_mode IN ('global', 'per_sku')),
-  price REAL
+  price REAL,
+  -- JSON array of variation ids that drive pricing (per_sku mode). Empty/NULL
+  -- means the pricing variation subset has not been chosen yet.
+  price_variation_ids TEXT
 );
 
 CREATE TABLE IF NOT EXISTS variations (
@@ -65,11 +68,27 @@ CREATE TABLE IF NOT EXISTS variation_options (
 
 -- SKU = one combination of variation options. Referenced loosely
 -- (no FK) from inventory/sale items so SKUs can be removed later.
+-- The price column is legacy (pre-v1); per-SKU prices live in sku_prices
+-- so that pricing can depend on any SUBSET of variations (e.g. SIZE only).
 CREATE TABLE IF NOT EXISTS skus (
   id TEXT PRIMARY KEY,
   product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   option_ids TEXT NOT NULL,
   price REAL
+);
+
+-- Price rows keyed by a combination of options from the product's
+-- pricing variations (a subset of all variations).
+CREATE TABLE IF NOT EXISTS sku_prices (
+  id TEXT PRIMARY KEY,
+  product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  option_ids TEXT NOT NULL,
+  price REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS clients (
@@ -146,6 +165,27 @@ export async function initDatabase(): Promise<void> {
 export function openWithInstance(instance: Database): void {
   db = instance
   db.run(SCHEMA)
+  migrate()
+}
+
+/**
+ * Idempotent, data-preserving migrations, tracked with PRAGMA user_version.
+ * v0 → v1: per-SKU prices move from skus.price to sku_prices so pricing can
+ * depend on a subset of variations.
+ */
+function migrate(): void {
+  const d = requireDb()
+  const version = get<{ user_version: number }>('PRAGMA user_version')?.user_version ?? 0
+  if (version < 1) {
+    const columns = all<{ name: string }>('PRAGMA table_info(products)')
+    if (!columns.some((column) => column.name === 'price_variation_ids')) {
+      d.run('ALTER TABLE products ADD COLUMN price_variation_ids TEXT')
+    }
+    d.run(`INSERT INTO sku_prices (id, product_id, option_ids, price)
+           SELECT id, product_id, option_ids, price FROM skus WHERE price IS NOT NULL`)
+    d.run('UPDATE skus SET price = NULL')
+    d.run('PRAGMA user_version = 1')
+  }
 }
 
 export function uid(): string {

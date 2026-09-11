@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { formatDateTime, formatMoney } from '@shared/db/format'
 import type { SaleWithDetails, TandaStatus } from '@shared/db/types'
 import { useTandasStore } from '@shared/stores/tandas'
+import { confirmDialog } from '@shared/ui/useConfirm'
 
 const props = defineProps<{ tandaId: string; status: TandaStatus }>()
 
@@ -18,8 +19,8 @@ function onDelivered(sale: SaleWithDetails, event: Event) {
   tandasStore.toggleDelivered(sale.id, (event.target as HTMLInputElement).checked)
 }
 
-function remove(sale: SaleWithDetails) {
-  if (confirm(`Delete the sale for ${sale.client.name}?`)) {
+async function remove(sale: SaleWithDetails) {
+  if (await confirmDialog(`Delete the sale for ${sale.client.name}?`, 'Delete')) {
     tandasStore.removeSale(sale.id)
   }
 }

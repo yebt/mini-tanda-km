@@ -52,8 +52,14 @@ function submit() {
 <template>
   <div class="row-between page-head">
     <h1>Tandas</h1>
-    <button v-if="!showForm" class="btn btn-primary" @click="openForm">New tanda</button>
+    <button v-if="!showForm" class="btn btn-primary desktop-only" @click="openForm">
+      New tanda
+    </button>
   </div>
+
+  <button v-if="!showForm" class="fab mobile-only" aria-label="New tanda" @click="openForm">
+    +
+  </button>
 
   <form v-if="showForm" class="card" @submit.prevent="submit">
     <div class="field">
@@ -80,7 +86,7 @@ function submit() {
 
   <div v-if="tandasStore.tandas.length === 0" class="card empty-state">No tandas yet.</div>
 
-  <table v-else class="table">
+  <table v-else class="desktop-only table">
     <thead>
       <tr>
         <th>Name</th>
@@ -112,6 +118,31 @@ function submit() {
       </tr>
     </tbody>
   </table>
+
+  <div v-if="tandasStore.tandas.length > 0" class="mobile-only">
+    <RouterLink
+      v-for="tanda in tandasStore.tandas"
+      :key="tanda.id"
+      :to="`/tandas/${tanda.id}`"
+      class="card tanda-card"
+    >
+      <div class="row-between">
+        <span class="tanda-name">{{ tanda.name }}</span>
+        <span class="badge" :class="STATUS_BADGE[tanda.status]">{{ tanda.status }}</span>
+      </div>
+      <div class="row tanda-meta">
+        <span class="muted">{{ formatDate(tanda.date) }}</span>
+        <span class="badge" :class="TYPE_BADGE[tanda.type]">{{ tanda.type }}</span>
+      </div>
+      <div class="row tanda-figures">
+        <span>{{ tanda.saleCount }} sales</span>
+        <span class="money">{{ formatMoney(tanda.revenue) }}</span>
+        <span v-if="tanda.pendingBalance > 0" class="money money-negative">
+          {{ formatMoney(tanda.pendingBalance) }} pending
+        </span>
+      </div>
+    </RouterLink>
+  </div>
 </template>
 
 <style scoped>
@@ -121,5 +152,29 @@ function submit() {
 
 .col-num {
   text-align: right;
+}
+
+.tanda-card {
+  display: block;
+  color: inherit;
+}
+
+.tanda-card:hover {
+  border-color: var(--color-primary);
+}
+
+.tanda-name {
+  font-weight: 700;
+}
+
+.tanda-meta {
+  margin-top: var(--space-1);
+}
+
+.tanda-figures {
+  margin-top: var(--space-2);
+  font-size: 0.85rem;
+  color: var(--color-ink-soft);
+  flex-wrap: wrap;
 }
 </style>

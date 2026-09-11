@@ -1,5 +1,5 @@
 import { all, get, run, transaction, uid } from '../database'
-import type { Product, Sku, SkuWithProduct, Variation } from '../types'
+import type { PriceRow, Product, Sku, SkuWithProduct, Variation } from '../types'
 import { skuLabel } from '../types'
 
 interface ProductRow {
@@ -9,6 +9,7 @@ interface ProductRow {
   photo: string | null
   price_mode: Product['priceMode']
   price: number | null
+  price_variation_ids: string | null
 }
 
 interface VariationRow {
@@ -39,6 +40,9 @@ function mapProduct(row: ProductRow, variations: Variation[]): Product {
     photo: row.photo,
     priceMode: row.price_mode,
     price: row.price,
+    priceVariationIds: row.price_variation_ids
+      ? (JSON.parse(row.price_variation_ids) as string[])
+      : [],
     variations,
   }
 }
@@ -74,26 +78,41 @@ export interface ProductInput {
   photo: string | null
   priceMode: Product['priceMode']
   price: number | null
+  priceVariationIds?: string[]
 }
 
 export function createProduct(input: ProductInput): string {
   const id = uid()
   run(
-    'INSERT INTO products (id, name, description, photo, price_mode, price) VALUES (?, ?, ?, ?, ?, ?)',
-    [id, input.name, input.description, input.photo, input.priceMode, input.price],
+    'INSERT INTO products (id, name, description, photo, price_mode, price, price_variation_ids) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [
+      id,
+      input.name,
+      input.description,
+      input.photo,
+      input.priceMode,
+      input.price,
+      JSON.stringify(input.priceVariationIds ?? []),
+    ],
   )
   return id
 }
 
 export function updateProduct(id: string, input: ProductInput): void {
+  // Preserve the pricing subset when the form does not send it.
+  const priceVariationIds = input.priceVariationIds ?? getProduct(id)?.priceVariationIds ?? []
   run(
-    'UPDATE products SET name = ?, description = ?, photo = ?, price_mode = ?, price = ? WHERE id = ?',
-    [input.name, input.description, input.photo, input.priceMode, input.price, id],
+    'UPDATE products SET name = ?, description = ?, photo = ?, price_mode = ?, price = ?, price_variation_ids = ? WHERE id = ?',
+    [
+      input.name,
+      input.description,
+      input.photo,
+      input.priceMode,
+      input.price,
+      JSON.stringify(priceVariationIds),
+      id,
+    ],
   )
-  // Changing the price mode invalidates per-SKU prices when switching to global.
-  if (input.priceMode === 'global') {
-    run('UPDATE skus SET price = NULL WHERE product_id = ?', [id])
-  }
 }
 
 /** True when the product is referenced by any sale or inventory item. */
@@ -227,18 +246,125 @@ function recomputeSkus(productId: string): void {
   }
 }
 
-export function setSkuPrice(skuId: string, price: number | null): void {
-  run('UPDATE skus SET price = ? WHERE id = ?', [price, skuId])
+// ── Pricing ──────────────────────────────────────────────────────────────
+//
+// Prices can depend on ANY SUBSET of the variations (e.g. only SIZE, or
+// SIZE + PACKAGING but not FLAVOR). The product's `priceVariationIds` picks
+// that subset; `sku_prices` rows are keyed by combinations of options from
+// those variations and resolve onto every SKU that contains the combination.
+
+interface PriceRowRow {
+  id: string
+  product_id: string
+  option_ids: string
+  price: number
+}
+
+function priceKey(optionIds: string[]): string {
+  return JSON.stringify([...optionIds].sort())
+}
+
+function mapPriceRow(row: PriceRowRow): PriceRow {
+  return {
+    id: row.id,
+    productId: row.product_id,
+    optionIds: JSON.parse(row.option_ids) as string[],
+    price: row.price,
+  }
+}
+
+export function listPriceRows(productId?: string): PriceRow[] {
+  const rows = productId
+    ? all<PriceRowRow>('SELECT * FROM sku_prices WHERE product_id = ?', [productId])
+    : all<PriceRowRow>('SELECT * FROM sku_prices')
+  return rows.map(mapPriceRow)
+}
+
+/** Upsert a price for an option combination; `null` (or <= 0) removes the row. */
+export function setPriceRow(productId: string, optionIds: string[], price: number | null): void {
+  const key = priceKey(optionIds)
+  const existing = get<PriceRowRow>(
+    'SELECT * FROM sku_prices WHERE product_id = ? AND option_ids = ?',
+    [productId, key],
+  )
+  if (price === null || price <= 0) {
+    if (existing) run('DELETE FROM sku_prices WHERE id = ?', [existing.id])
+    return
+  }
+  if (existing) {
+    run('UPDATE sku_prices SET price = ? WHERE id = ?', [price, existing.id])
+  } else {
+    run('INSERT INTO sku_prices (id, product_id, option_ids, price) VALUES (?, ?, ?, ?)', [
+      uid(),
+      productId,
+      key,
+      price,
+    ])
+  }
+}
+
+/**
+ * Choose which variations drive pricing. Price rows whose options are not
+ * all part of the chosen variations are dropped.
+ */
+export function setPricingVariations(productId: string, variationIds: string[]): void {
+  const product = getProduct(productId)
+  if (!product) return
+  const valid = new Set(product.variations.map((variation) => variation.id))
+  const chosen = variationIds.filter((id) => valid.has(id))
+  transaction(() => {
+    run('UPDATE products SET price_variation_ids = ? WHERE id = ?', [
+      JSON.stringify(chosen),
+      productId,
+    ])
+    const allowedOptions = new Set(
+      product.variations
+        .filter((variation) => chosen.includes(variation.id))
+        .flatMap((variation) => variation.options.map((option) => option.id)),
+    )
+    for (const row of listPriceRows(productId)) {
+      if (!row.optionIds.every((optionId) => allowedOptions.has(optionId))) {
+        run('DELETE FROM sku_prices WHERE id = ?', [row.id])
+      }
+    }
+  })
+}
+
+/**
+ * Effective price for a SKU: the price row matching the SKU's options from
+ * the pricing variations. Returns null when the product is unpriced.
+ */
+export function resolvePrice(
+  product: Pick<Product, 'priceMode' | 'price' | 'priceVariationIds' | 'variations'>,
+  sku: Pick<Sku, 'optionIds'>,
+  rows?: PriceRow[],
+): number | null {
+  if (product.priceMode === 'global') return product.price
+  if (product.priceVariationIds.length === 0) return null
+  const pricingOptions = new Set(
+    product.variations
+      .filter((variation) => product.priceVariationIds.includes(variation.id))
+      .flatMap((variation) => variation.options.map((option) => option.id)),
+  )
+  const key = priceKey(sku.optionIds.filter((optionId) => pricingOptions.has(optionId)))
+  const row = (rows ?? listPriceRows()).find((candidate) => priceKey(candidate.optionIds) === key)
+  return row?.price ?? null
 }
 
 /** All SKUs joined with product name, label and effective price. */
 export function listSkusWithProducts(): SkuWithProduct[] {
   const products = new Map(listProducts().map((product) => [product.id, product]))
+  const rowsByProduct = new Map<string, PriceRow[]>()
+  for (const row of listPriceRows()) {
+    const list = rowsByProduct.get(row.productId) ?? []
+    list.push(row)
+    rowsByProduct.set(row.productId, list)
+  }
   return listSkus()
     .map((sku) => {
       const product = products.get(sku.productId)
       if (!product) return null
-      const price = product.priceMode === 'global' ? product.price : sku.price
+      const price = resolvePrice(product, sku, rowsByProduct.get(sku.productId) ?? [])
       return { ...sku, productName: product.name, label: skuLabel(product, sku), price }
     })
     .filter((sku): sku is SkuWithProduct => sku !== null)

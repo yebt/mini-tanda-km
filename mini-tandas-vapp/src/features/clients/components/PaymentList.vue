@@ -3,6 +3,7 @@ import { computed } from 'vue'
 
 import { formatDateTime, formatMoney } from '@shared/db/format'
 import { useClientsStore } from '@shared/stores/clients'
+import { confirmDialog } from '@shared/ui/useConfirm'
 import type { PaymentWithContext } from '@shared/db/types'
 
 const props = defineProps<{
@@ -13,8 +14,8 @@ const clientsStore = useClientsStore()
 
 const payments = computed<PaymentWithContext[]>(() => clientsStore.paymentsFor(props.clientId))
 
-function remove(payment: PaymentWithContext): void {
-  if (window.confirm(`Delete payment of ${formatMoney(payment.amount)}?`)) {
+async function remove(payment: PaymentWithContext): Promise<void> {
+  if (await confirmDialog(`Delete payment of ${formatMoney(payment.amount)}?`, 'Delete')) {
     clientsStore.removePayment(payment.id)
   }
 }
