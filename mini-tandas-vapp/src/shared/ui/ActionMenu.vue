@@ -112,7 +112,8 @@ function onPay() {
   right: 0;
   top: calc(100% + var(--space-1));
   z-index: 41;
-  min-width: 140px;
+  /* min-width: 140px; */
+  min-width: max-content;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-small);

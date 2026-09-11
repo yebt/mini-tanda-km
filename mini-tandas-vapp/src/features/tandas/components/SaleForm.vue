@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { Minus, Plus, X } from 'lucide-vue-next'
 
 import { formatMoney } from '@shared/db/format'
 import type { SaleWithDetails, TandaType } from '@shared/db/types'
@@ -45,6 +46,8 @@ const lines = ref<DraftLine[]>(
   })) ?? [],
 )
 const error = ref('')
+
+const skuCombo = ref<InstanceType<typeof Combobox> | null>(null)
 
 const isEdit = computed(() => props.initialSale !== undefined)
 
@@ -102,15 +105,45 @@ const remainingForSelected = computed<number | null>(() => {
   return stockLimitOf(selectedSkuId.value) - inLines
 })
 
+const canBumpQtyUp = computed(
+  () => remainingForSelected.value === null || quantity.value < remainingForSelected.value,
+)
+
 const runningTotal = computed(() =>
   lines.value.reduce((sum, line) => sum + line.price * line.quantity, 0),
 )
 
 const canSubmit = computed(() => lines.value.length > 0 && clientChoice.value !== '')
 
+// Any edit to the pending line clears a stale error from the previous attempt.
+watch([selectedSkuId, quantity], () => {
+  error.value = ''
+})
+
+/** Focus the product search so the next product can be typed immediately. */
+function focusSkuSearch() {
+  skuCombo.value?.focus()
+}
+
+onMounted(focusSkuSearch)
+
 function onCreateClient(query: string) {
   const id = clientsStore.addClient(query.trim())
   clientChoice.value = id
+}
+
+/** Upper bound a line may reach: batch stock (plus the edit sale's own) or none. */
+function lineCap(line: DraftLine): number {
+  return props.type === 'anticipated' ? stockLimitOf(line.skuId) : Number.POSITIVE_INFINITY
+}
+
+function bumpQty(delta: number) {
+  const base = Number.isInteger(quantity.value) && quantity.value >= 1 ? quantity.value : 1
+  const next = Math.max(1, base + delta)
+  quantity.value =
+    remainingForSelected.value === null
+      ? next
+      : Math.min(next, Math.max(remainingForSelected.value, 1))
 }
 
 function addLine() {
@@ -152,6 +185,34 @@ function addLine() {
   }
   selectedSkuId.value = ''
   quantity.value = 1
+  focusSkuSearch()
+}
+
+/** Enter inside the product search adds the line once a SKU is picked. */
+function onSkuEnter() {
+  if (selectedSkuId.value) addLine()
+}
+
+function bumpLine(line: DraftLine, delta: number) {
+  line.quantity = Math.min(Math.max(line.quantity + delta, 1), lineCap(line))
+}
+
+function onLineQtyInput(line: DraftLine, event: Event) {
+  const input = event.target as HTMLInputElement
+  const next = Number(input.value)
+  if (!Number.isInteger(next) || next < 1) {
+    input.value = String(line.quantity)
+    return
+  }
+  line.quantity = Math.min(next, lineCap(line))
+  input.value = String(line.quantity)
+}
+
+/** Remaining stock label for a line (anticipated tandas only). */
+function lineStockLabel(line: DraftLine): string | null {
+  if (props.type !== 'anticipated') return null
+  const left = Math.max(stockLimitOf(line.skuId) - line.quantity, 0)
+  return left === 0 ? 'none left' : `${left} left`
 }
 
 function removeLine(skuId: string) {
@@ -207,9 +268,10 @@ function submit() {
       />
     </div>
 
-    <div class="field">
+    <div class="field" @keydown.enter="onSkuEnter">
       <label class="label" for="sale-sku">Product</label>
       <Combobox
+        ref="skuCombo"
         v-model="selectedSkuId"
         :options="skuOptions"
         input-id="sale-sku"
@@ -224,42 +286,118 @@ function submit() {
       </p>
     </div>
 
-    <div class="field row">
-      <input
-        v-model.number="quantity"
-        class="input qty-input"
-        type="number"
-        min="1"
-        step="1"
-        aria-label="Quantity"
-      />
-      <button type="button" class="btn" @click="addLine">Add line</button>
+    <div class="field composer">
+      <div class="stepper">
+        <button
+          type="button"
+          class="stepper-btn"
+          aria-label="Decrease amount"
+          :disabled="quantity <= 1"
+          @click="bumpQty(-1)"
+        >
+          <Minus :size="16" />
+        </button>
+        <input
+          v-model.number="quantity"
+          class="input stepper-input"
+          type="number"
+          min="1"
+          step="1"
+          aria-label="Quantity"
+          @keydown.enter.prevent="addLine"
+        />
+        <button
+          type="button"
+          class="stepper-btn"
+          aria-label="Increase amount"
+          :disabled="!canBumpQtyUp"
+          @click="bumpQty(1)"
+        >
+          <Plus :size="16" />
+        </button>
+      </div>
+      <button type="button" class="btn add-line-btn" @click="addLine">
+        <Plus :size="16" />
+        Add line
+      </button>
     </div>
 
-    <table v-if="lines.length > 0" class="table">
-      <tbody>
-        <tr v-for="line in lines" :key="line.skuId">
-          <td>{{ line.quantity }} × {{ line.label }}</td>
-          <td class="col-num money">{{ formatMoney(line.price * line.quantity) }}</td>
-          <td class="col-action">
-            <button type="button" class="btn btn-ghost btn-danger" @click="removeLine(line.skuId)">
-              Remove
+    <p v-if="error" class="error-text" role="alert">{{ error }}</p>
+
+    <template v-if="lines.length > 0">
+      <h3 class="lines-title">Items</h3>
+      <ul class="lines">
+        <li v-for="line in lines" :key="line.skuId" class="line-card">
+          <div class="line-info">
+            <span class="line-label">{{ line.label }}</span>
+            <span class="muted">{{ formatMoney(line.price) }} each</span>
+            <span
+              v-if="lineStockLabel(line) !== null"
+              class="line-stock"
+              :class="{ 'is-out': lineStockLabel(line) === 'none left' }"
+            >
+              {{ lineStockLabel(line) }}
+            </span>
+          </div>
+          <div class="stepper stepper-sm">
+            <button
+              type="button"
+              class="stepper-btn"
+              :aria-label="`One less ${line.label}`"
+              :disabled="line.quantity <= 1"
+              @click="bumpLine(line, -1)"
+            >
+              <Minus :size="14" />
             </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+            <input
+              class="input stepper-input"
+              type="number"
+              min="1"
+              step="1"
+              :value="line.quantity"
+              :aria-label="`Units of ${line.label}`"
+              @change="onLineQtyInput(line, $event)"
+            />
+            <button
+              type="button"
+              class="stepper-btn"
+              :aria-label="`One more ${line.label}`"
+              :disabled="line.quantity >= lineCap(line)"
+              @click="bumpLine(line, 1)"
+            >
+              <Plus :size="14" />
+            </button>
+          </div>
+          <span class="money line-total">{{ formatMoney(line.price * line.quantity) }}</span>
+          <button
+            type="button"
+            class="line-remove"
+            :aria-label="`Remove ${line.label}`"
+            @click="removeLine(line.skuId)"
+          >
+            <X :size="15" />
+          </button>
+        </li>
+      </ul>
+    </template>
+    <p v-else class="muted lines-empty">No items yet — search a product above to add it.</p>
 
-    <p v-if="error" class="error-text">{{ error }}</p>
-
-    <div class="row-between total-row">
-      <span class="muted">Total</span>
-      <span class="money">{{ formatMoney(runningTotal) }}</span>
-    </div>
-
-    <button type="button" class="btn btn-primary" :disabled="!canSubmit" @click="submit">
-      {{ isEdit ? 'Save changes' : 'Add sale' }}
-    </button>
+    <footer class="form-footer">
+      <div class="row-between total-row">
+        <span class="muted"
+          >Total · {{ lines.length }} {{ lines.length === 1 ? 'item' : 'items' }}</span
+        >
+        <span class="money">{{ formatMoney(runningTotal) }}</span>
+      </div>
+      <button
+        type="button"
+        class="btn btn-primary footer-submit"
+        :disabled="!canSubmit"
+        @click="submit"
+      >
+        {{ isEdit ? 'Save changes' : 'Add sale' }}
+      </button>
+    </footer>
   </section>
 </template>
 
@@ -268,22 +406,185 @@ h2 {
   margin-bottom: var(--space-4);
 }
 
-.qty-input {
-  width: 5.5rem;
+.composer {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
 }
 
-.col-num {
-  text-align: right;
+/* ── Quantity stepper (draft composer + inline line rows) ─────────────── */
+.stepper {
+  display: inline-flex;
+  align-items: stretch;
+  flex-shrink: 0;
 }
 
-.col-action {
-  text-align: right;
-  width: 1%;
+.stepper-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.stepper-btn:first-child {
+  border-radius: var(--radius-small) 0 0 var(--radius-small);
+}
+
+.stepper-btn:last-child {
+  border-radius: 0 var(--radius-small) var(--radius-small) 0;
+}
+
+.stepper-btn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.stepper-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.stepper-input {
+  width: 3rem;
+  padding-inline: 0.25rem;
+  text-align: center;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  -webkit-appearance: none;
+  appearance: none;
+  -moz-appearance: textfield;
+}
+
+.stepper-input::-webkit-outer-spin-button,
+.stepper-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.add-line-btn {
+  flex: 1;
+  justify-content: center;
+  min-height: 44px;
+}
+
+/* ── Lines: stacked cards on mobile, one row on desktop ───────────────── */
+.lines-title {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+.lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.line-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.line-info {
+  flex: 1 1 calc(100% - 2.5rem);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  min-width: 0;
+}
+
+.line-label {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.line-stock {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-success);
+}
+
+.line-stock.is-out {
+  color: var(--color-danger);
+}
+
+.stepper-sm .stepper-btn {
+  width: 36px;
+  min-height: 36px;
+}
+
+.stepper-sm .stepper-input {
+  width: 2.8rem;
+}
+
+.line-total {
+  margin-left: auto;
+  font-size: 1.02rem;
+}
+
+.line-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+}
+
+.line-remove:hover {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.lines-empty {
+  margin: var(--space-2) 0;
+}
+
+/* ── Sticky summary: stays pinned at the foot of the dialog sheet ─────── */
+.form-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: var(--space-4) calc(-1 * var(--space-6)) calc(-1 * var(--space-6));
+  padding: var(--space-3) var(--space-6) var(--space-4);
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-border);
+  border-radius: 0 0 var(--radius) var(--radius);
 }
 
 .total-row {
-  margin: var(--space-3) 0;
+  margin-bottom: var(--space-3);
   font-size: 1.05rem;
+}
+
+.footer-submit {
+  width: 100%;
+  justify-content: center;
+  min-height: 44px;
 }
 
 .client-static {
@@ -295,5 +596,19 @@ h2 {
 .stock-out {
   color: var(--color-danger);
   font-weight: 700;
+}
+
+@media (min-width: 721px) {
+  .line-card {
+    flex-wrap: nowrap;
+  }
+
+  .line-info {
+    flex: 1 1 auto;
+  }
+
+  .line-total {
+    margin-left: 0;
+  }
 }
 </style>

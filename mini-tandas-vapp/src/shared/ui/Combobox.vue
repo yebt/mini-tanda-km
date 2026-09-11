@@ -29,6 +29,47 @@ const emit = defineEmits<{
 const open = ref(false)
 const query = ref('')
 
+const root = ref<HTMLElement | null>(null)
+const listEl = ref<HTMLElement | null>(null)
+/** Fixed viewport position for the teleported dropdown. */
+const listStyle = ref({ top: '0px', left: '0px', width: '0px' })
+
+/**
+ * The dropdown renders in a Teleport (see template) so it can escape overflow
+ * containers like the sale dialog sheet. Its fixed position is computed from
+ * the input's viewport rect and flips above the input when space runs out.
+ */
+async function positionList() {
+  await nextTick()
+  const input = root.value?.querySelector('input')
+  if (!input) return
+  const rect = input.getBoundingClientRect()
+  const listHeight = listEl.value?.offsetHeight ?? 0
+  const gap = 4
+  const fitsBelow = rect.bottom + gap + listHeight <= window.innerHeight
+  const top = fitsBelow ? rect.bottom + gap : Math.max(gap, rect.top - gap - listHeight)
+  listStyle.value = {
+    top: `${Math.round(top)}px`,
+    left: `${Math.round(rect.left)}px`,
+    width: `${Math.round(rect.width)}px`,
+  }
+}
+
+watch(open, (value) => {
+  if (value) positionList()
+})
+
+function onViewportChange() {
+  if (open.value) positionList()
+}
+
+window.addEventListener('resize', onViewportChange)
+window.addEventListener('scroll', onViewportChange, true)
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', onViewportChange)
+  window.removeEventListener('scroll', onViewportChange, true)
+})
+
 const selected = computed(() => props.options.find((o) => o.value === props.modelValue) ?? null)
 
 /** Sync the input text with the selected option (also on external resets). */
@@ -46,6 +87,11 @@ const filtered = computed(() => {
   const q = query.value.trim().toLowerCase()
   const matches = q ? props.options.filter((o) => o.label.toLowerCase().includes(q)) : props.options
   return matches.slice(0, MAX_RESULTS)
+})
+
+// The dropdown height changes with the filtered results — keep it anchored.
+watch(filtered, () => {
+  if (open.value) positionList()
 })
 
 const exactMatch = computed(() =>
@@ -101,11 +147,18 @@ function clear() {
   emit('update:modelValue', '')
 }
 
-defineExpose({ clear })
+/** Focus the input for typing continuity without dropping the open backdrop
+ *  over the page (the focus event would otherwise open the list). */
+function focus() {
+  root.value?.querySelector('input')?.focus()
+  open.value = false
+}
+
+defineExpose({ clear, focus })
 </script>
 
 <template>
-  <div class="combo">
+  <div ref="root" class="combo">
     <input
       :id="inputId"
       v-model="query"
@@ -122,35 +175,37 @@ defineExpose({ clear })
       @keydown.escape.prevent="closeList"
       @keydown.down.prevent="openList"
     />
-    <div v-if="open" class="combo-backdrop" @click="closeList" @mousedown.prevent />
-    <div v-if="open" class="combo-list" role="listbox">
-      <button
-        v-for="option in filtered"
-        :key="option.value"
-        type="button"
-        role="option"
-        class="combo-option"
-        :class="{ 'is-selected': option.value === modelValue, 'is-disabled': option.disabled }"
-        :aria-disabled="option.disabled || undefined"
-        @click="pick(option)"
-      >
-        <span class="option-label">{{ option.label }}</span>
-        <span v-if="option.disabled && option.disabledReason" class="option-hint">
-          {{ option.disabledReason }}
-        </span>
-        <span v-else-if="option.hint" class="option-hint">{{ option.hint }}</span>
-      </button>
-      <p v-if="filtered.length === 0 && !showCreate" class="combo-empty muted">No matches.</p>
-      <button
-        v-if="showCreate"
-        type="button"
-        role="option"
-        class="combo-option combo-create"
-        @click="createFromQuery"
-      >
-        + Create "{{ query.trim() }}"
-      </button>
-    </div>
+    <Teleport to="body">
+      <div v-if="open" class="combo-backdrop" @click="closeList" @mousedown.prevent />
+      <div v-if="open" ref="listEl" class="combo-list" role="listbox" :style="listStyle">
+        <button
+          v-for="option in filtered"
+          :key="option.value"
+          type="button"
+          role="option"
+          class="combo-option"
+          :class="{ 'is-selected': option.value === modelValue, 'is-disabled': option.disabled }"
+          :aria-disabled="option.disabled || undefined"
+          @click="pick(option)"
+        >
+          <span class="option-label">{{ option.label }}</span>
+          <span v-if="option.disabled && option.disabledReason" class="option-hint">
+            {{ option.disabledReason }}
+          </span>
+          <span v-else-if="option.hint" class="option-hint">{{ option.hint }}</span>
+        </button>
+        <p v-if="filtered.length === 0 && !showCreate" class="combo-empty muted">No matches.</p>
+        <button
+          v-if="showCreate"
+          type="button"
+          role="option"
+          class="combo-option combo-create"
+          @click="createFromQuery"
+        >
+          + Create "{{ query.trim() }}"
+        </button>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -162,17 +217,15 @@ defineExpose({ clear })
 .combo-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 80;
 }
 
 .combo-list {
-  position: absolute;
-  top: calc(100% + var(--space-1));
-  left: 0;
-  right: 0;
-  z-index: 41;
+  position: fixed;
+  z-index: 81;
   max-height: 16rem;
   overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-small);
