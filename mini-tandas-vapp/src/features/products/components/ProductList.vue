@@ -135,6 +135,24 @@ const rows = computed<Row[]>(() =>
   font-size: 0.8rem;
 }
 
+tbody td {
+  transition: background-color 140ms ease-out;
+}
+
+tbody tr:hover td {
+  background: var(--color-bg);
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  tbody td {
+    transition: none;
+  }
+}
+
 .product-photo {
   flex: 0 0 40px;
   width: 40px;
@@ -162,7 +180,8 @@ const rows = computed<Row[]>(() =>
 
 .product-list {
   display: grid;
-  grid-template-columns: 1fr;
+  /* minmax(0, …) so long price rows can't push the track past the viewport */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
 }
 </style>

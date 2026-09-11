@@ -42,16 +42,14 @@ test('full journey: product priced by one variation → client → scheduled tan
   await expect(page.locator('#tanda-name')).toHaveValue(/^Tanda /)
   await page.getByRole('button', { name: 'Create tanda' }).click()
 
-  // Landed on the tanda detail page.
+  // Landed on the tanda detail page; sales are open while scheduled+open.
   await expect(page.getByText('open', { exact: false }).first()).toBeVisible()
 
-  await page.locator('#sale-client').selectOption({ label: 'María' })
-  const skuSelect = page.locator('#sale-sku')
-  const personalValue = await skuSelect
-    .locator('option', { hasText: 'Personal' })
-    .first()
-    .getAttribute('value')
-  await skuSelect.selectOption(personalValue!)
+  await page.getByRole('button', { name: 'New sale' }).click()
+  await page.locator('#sale-client').fill('Marí')
+  await page.getByRole('option', { name: 'María' }).click()
+  await page.locator('#sale-sku').fill('Personal')
+  await page.getByRole('option', { name: /Cake \(Personal\)/ }).click()
   await page.getByLabel('Quantity').fill('3')
   await page.getByRole('button', { name: 'Add line' }).click()
   await page.getByRole('button', { name: 'Add sale' }).click()
@@ -100,9 +98,10 @@ test('anticipated tanda: stock in open, sales open once ready', async ({ page })
   await page.getByRole('button', { name: 'Create tanda' }).click()
 
   await expect(page.getByText('Define the batch inventory')).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'New sale' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'New sale' })).toHaveCount(0)
 
-  // Register production: 5 Big cookies.
+  // Register production: 5 Big cookies (inventory lives on its own tab).
+  await page.getByRole('tab', { name: 'Inventory' }).click()
   const inventorySection = page.locator('section', {
     has: page.getByRole('heading', { name: 'Inventory' }),
   })
@@ -112,25 +111,27 @@ test('anticipated tanda: stock in open, sales open once ready', async ({ page })
 
   await page.getByRole('button', { name: 'Advance to production' }).click()
   await expect(page.getByText('Baking is underway')).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'New sale' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'New sale' })).toHaveCount(0)
 
   // ── Sales open once ready ──────────────────────────────────────────────
   await page.getByRole('button', { name: 'Advance to ready' }).click()
   await expect(page.getByText('Sales are open against the batch inventory')).toBeVisible()
 
-  await page.locator('#sale-client').selectOption({ label: 'Ana' })
-  const skuSelect = page.locator('#sale-sku')
-  const bigValue = await skuSelect.locator('option', { hasText: 'Big' }).first().getAttribute('value')
-  await skuSelect.selectOption(bigValue!)
+  // Sell straight from the inventory: opens the sale dialog with the SKU picked.
+  await bigInventoryRow.getByRole('button', { name: 'Sell' }).click()
+  await expect(page.locator('#sale-sku')).toHaveValue('Cookie (Big)')
+
+  await page.locator('#sale-client').fill('An')
+  await page.getByRole('option', { name: 'Ana' }).click()
   await page.getByLabel('Quantity').fill('2')
   await page.getByRole('button', { name: 'Add line' }).click()
   await page.getByRole('button', { name: 'Add sale' }).click()
 
   // 2 × $50 = $100 pending; stock drops to 3 available.
-  await expect(page.getByText('100.00').first()).toBeVisible()
   await expect(bigInventoryRow.locator('td.col-num')).toHaveText(['5', '2', '3'])
+  await page.getByRole('tab', { name: 'Sales' }).click()
+  await expect(page.getByText('100.00').first()).toBeVisible()
 })
-
 
 test('mobile shell: bottom nav, back button and floating create button', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
@@ -154,7 +155,7 @@ test('mobile shell: bottom nav, back button and floating create button', async (
 
   // Currency setting switches formatting app-wide.
   await bottomNav.getByRole('link', { name: /Settings/i }).click()
-  await page.locator('select').selectOption('USD')
+  await page.locator('#currency-select').selectOption('USD')
   await expect(page.getByText('Sample: $1,234.50')).toBeVisible()
 
   // Lists render as cards/lists on mobile — no horizontal overflow.

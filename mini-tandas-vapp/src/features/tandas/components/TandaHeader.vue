@@ -59,7 +59,7 @@ function saveDate() {
           <input v-model="name" class="input name-input" @change="saveName" />
           <input v-model="date" class="input date-input" type="date" @change="saveDate" />
         </div>
-        <div v-else class="row">
+        <div v-else class="row header-view">
           <h1>{{ tanda.name }}</h1>
           <span class="muted">{{ formatDate(tanda.date) }}</span>
         </div>
@@ -72,10 +72,13 @@ function saveDate() {
 <style scoped>
 .header-edit {
   margin-bottom: var(--space-2);
+  flex-wrap: wrap;
 }
 
 .name-input {
   max-width: 22rem;
+  min-width: 0;
+  flex: 1;
   font-weight: 700;
 }
 
@@ -85,5 +88,18 @@ function saveDate() {
 
 h1 {
   margin-bottom: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.header-view {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  h1 {
+    font-size: 1.3rem;
+    flex-basis: 100%;
+  }
 }
 </style>

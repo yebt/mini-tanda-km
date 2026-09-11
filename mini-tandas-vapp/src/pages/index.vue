@@ -43,14 +43,20 @@ const nextActions = tandasStore.activeTandas.slice(0, 5)
       No active tandas. Create one to start taking orders.
     </p>
     <ul v-else class="upcoming-list">
-      <li v-for="tanda in nextActions" :key="tanda.id" class="row-between upcoming-item">
-        <RouterLink :to="`/tandas/${tanda.id}`" class="upcoming-name">{{ tanda.name }}</RouterLink>
-        <span class="muted">{{ formatDate(tanda.date) }}</span>
-        <span class="badge badge-info">{{ tanda.type }}</span>
-        <span class="badge" :class="tanda.status === 'open' ? 'badge-neutral' : 'badge-success'">
-          {{ tanda.status }}
-        </span>
-        <span class="money">{{ formatMoney(tanda.pendingBalance) }} pending</span>
+      <li v-for="tanda in nextActions" :key="tanda.id" class="upcoming-item">
+        <div class="row-between">
+          <RouterLink :to="`/tandas/${tanda.id}`" class="upcoming-name">{{
+            tanda.name
+          }}</RouterLink>
+          <span class="money">{{ formatMoney(tanda.pendingBalance) }} pending</span>
+        </div>
+        <div class="row upcoming-meta">
+          <span class="muted">{{ formatDate(tanda.date) }}</span>
+          <span class="badge badge-info">{{ tanda.type }}</span>
+          <span class="badge" :class="tanda.status === 'open' ? 'badge-neutral' : 'badge-success'">
+            {{ tanda.status }}
+          </span>
+        </div>
       </li>
     </ul>
   </section>
@@ -81,6 +87,11 @@ const nextActions = tandasStore.activeTandas.slice(0, 5)
 .upcoming-item {
   padding: var(--space-2) 0;
   border-bottom: 1px solid var(--color-border);
+}
+
+.upcoming-meta {
+  margin-top: var(--space-1);
+  flex-wrap: wrap;
 }
 
 .upcoming-item:last-child {

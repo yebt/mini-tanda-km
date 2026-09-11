@@ -13,15 +13,42 @@
   --color-warning-soft: #f8ecd2;
   --color-danger: #b3372f;
   --color-danger-soft: #f7dedb;
+  --color-on-primary: #ffffff;
+  --color-primary-hover: #9c4719;
+  --color-focus-ring: #f6e4d7;
   --radius: 10px;
   --radius-small: 6px;
   --shadow: 0 1px 2px rgb(43 33 24 / 6%), 0 4px 16px rgb(43 33 24 / 6%);
+  --shadow-fab: 0 4px 14px rgb(43 33 24 / 30%);
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
   --space-6: 1.5rem;
   --space-8: 2rem;
+}
+
+/* ── Dark theme ────────────────────────────────────────────────────────── */
+html[data-theme='dark'] {
+  color-scheme: dark;
+  --color-bg: #1b1410;
+  --color-surface: #2a211a;
+  --color-ink: #f3ece3;
+  --color-ink-soft: #a39481;
+  --color-border: #453729;
+  --color-primary: #d96f35;
+  --color-primary-soft: #3d2a1a;
+  --color-success: #84c491;
+  --color-success-soft: #243324;
+  --color-warning: #e2a93b;
+  --color-warning-soft: #332a12;
+  --color-danger: #e47973;
+  --color-danger-soft: #3a211d;
+  --color-on-primary: #2b2118;
+  --color-primary-hover: #e8803f;
+  --color-focus-ring: rgb(217 111 53 / 50%);
+  --shadow: 0 1px 2px rgb(20 10 5 / 45%), 0 4px 16px rgb(20 10 5 / 45%);
+  --shadow-fab: 0 4px 14px rgb(20 10 5 / 55%);
 }
 
 /* ── Base ──────────────────────────────────────────────────────────────── */
@@ -97,12 +124,12 @@ a {
 .btn-primary {
   background: var(--color-primary);
   border-color: var(--color-primary);
-  color: #fff;
+  color: var(--color-on-primary);
 }
 
 .btn-primary:hover {
-  background: #9c4719;
-  color: #fff;
+  background: var(--color-primary-hover);
+  color: var(--color-on-primary);
 }
 
 .btn-ghost {
@@ -140,7 +167,7 @@ a {
 .input:focus,
 .select:focus,
 .textarea:focus {
-  outline: 2px solid var(--color-primary-soft);
+  outline: 2px solid var(--color-focus-ring);
   border-color: var(--color-primary);
 }
 
@@ -282,11 +309,11 @@ a {
   border-radius: 50%;
   border: none;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-on-primary);
   font-size: 1.6rem;
   line-height: 1;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgb(43 33 24 / 30%);
+  box-shadow: var(--shadow-fab);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -294,5 +321,5 @@ a {
 }
 
 .fab:hover {
-  background: #9c4719;
+  background: var(--color-primary-hover);
 }

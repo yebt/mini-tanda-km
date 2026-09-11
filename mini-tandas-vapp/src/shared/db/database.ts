@@ -238,3 +238,84 @@ export function transaction(fn: () => void): void {
     throw error
   }
 }
+
+const EXPORT_TABLES = [
+  'products',
+  'variations',
+  'variation_options',
+  'skus',
+  'sku_prices',
+  'settings',
+  'clients',
+  'tandas',
+  'inventory_items',
+  'sales',
+  'sale_items',
+  'payments',
+] as const
+
+/** Full app data as plain JSON rows, keyed by table (for backups/exports). */
+export function exportAllData(): Record<string, Record<string, SqlValue>[]> {
+  return Object.fromEntries(EXPORT_TABLES.map((table) => [table, all(`SELECT * FROM ${table}`)]))
+}
+
+/**
+ * Replace ALL app data with an exported payload (`{ app, exportedAt, data }`
+ * or the bare `data` map). Children are deleted before parents to respect
+ * foreign keys. Returns the number of rows inserted.
+ */
+export function importAllData(payload: unknown): number {
+  const data =
+    typeof payload === 'object' && payload !== null && 'data' in payload
+      ? (payload as { data: unknown }).data
+      : payload
+  if (typeof data !== 'object' || data === null) {
+    throw new Error('Not a Mini Tanda export file.')
+  }
+  const rowsByTable = data as Record<string, unknown>
+  const unknownTables = Object.keys(rowsByTable).filter(
+    (t) => !(EXPORT_TABLES as readonly string[]).includes(t),
+  )
+  if (unknownTables.length > 0) {
+    throw new Error(`Unrecognized tables in file: ${unknownTables.join(', ')}`)
+  }
+
+  // Child-before-parent deletion order (FK-safe).
+  const DELETE_ORDER = [
+    'payments',
+    'sale_items',
+    'sales',
+    'inventory_items',
+    'tandas',
+    'sku_prices',
+    'skus',
+    'variation_options',
+    'variations',
+    'products',
+    'clients',
+    'settings',
+  ] as const
+
+  let inserted = 0
+  transaction(() => {
+    for (const table of DELETE_ORDER) {
+      run(`DELETE FROM ${table}`)
+    }
+    for (const table of EXPORT_TABLES) {
+      const rows = rowsByTable[table]
+      if (!Array.isArray(rows)) continue
+      for (const row of rows) {
+        const record = row as Record<string, SqlValue>
+        const columns = Object.keys(record)
+        if (columns.length === 0) continue
+        const placeholders = columns.map(() => '?').join(', ')
+        run(
+          `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`,
+          columns.map((c) => record[c] ?? null),
+        )
+        inserted++
+      }
+    }
+  })
+  return inserted
+}

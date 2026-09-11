@@ -1,0 +1,100 @@
+<script setup lang="ts">
+import type { TandaType } from '@shared/db/types'
+
+import SaleForm from './SaleForm.vue'
+
+defineProps<{
+  tandaId: string
+  type: TandaType
+  /** SKU pre-selected when the dialog opens (e.g. sold from the inventory). */
+  initialSkuId?: string
+}>()
+
+const emit = defineEmits<{
+  close: []
+}>()
+
+function onClose() {
+  emit('close')
+}
+</script>
+
+<template>
+  <Teleport to="body">
+    <div class="dialog-backdrop" @click="onClose">
+      <div class="dialog-sheet" role="dialog" aria-modal="true" aria-label="New sale" @click.stop>
+        <button type="button" class="dialog-close" aria-label="Close" @click="onClose">×</button>
+        <SaleForm
+          :tanda-id="tandaId"
+          :type="type"
+          :initial-sku-id="initialSkuId"
+          @submitted="onClose"
+        />
+      </div>
+    </div>
+  </Teleport>
+</template>
+
+<style scoped>
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgb(27 20 16 / 55%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.dialog-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 34rem;
+  max-height: calc(100dvh - var(--space-8));
+  overflow-y: auto;
+  background: var(--color-bg);
+  border-radius: var(--radius);
+}
+
+.dialog-sheet :deep(.sale-form) {
+  margin-bottom: 0;
+  border: none;
+  box-shadow: none;
+}
+
+.dialog-close {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: 1;
+  border: none;
+  background: transparent;
+  color: var(--color-ink-soft);
+  font-size: 1.4rem;
+  line-height: 1;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-small);
+  cursor: pointer;
+}
+
+.dialog-close:hover {
+  color: var(--color-ink);
+  background: var(--color-primary-soft);
+}
+
+/* Mobile: bottom sheet sliding up from the nav bar. */
+@media (max-width: 720px) {
+  .dialog-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .dialog-sheet {
+    max-width: none;
+    max-height: 85dvh;
+    border-radius: var(--radius) var(--radius) 0 0;
+    padding-bottom: var(--space-4);
+  }
+}
+</style>

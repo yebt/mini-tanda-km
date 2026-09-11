@@ -6,18 +6,25 @@ import type { TandaType } from '@shared/db/types'
 import { useClientsStore } from '@shared/stores/clients'
 import { useProductsStore } from '@shared/stores/products'
 import { useTandasStore } from '@shared/stores/tandas'
+import Combobox, { type ComboOption } from '@shared/ui/Combobox.vue'
 
-const props = defineProps<{ tandaId: string; type: TandaType }>()
+const props = defineProps<{
+  tandaId: string
+  type: TandaType
+  /** Pre-selected SKU (e.g. when launching the form from the inventory). */
+  initialSkuId?: string
+}>()
+
+const emit = defineEmits<{
+  submitted: []
+}>()
 
 const tandasStore = useTandasStore()
 const clientsStore = useClientsStore()
 const productsStore = useProductsStore()
 
-const NEW_CLIENT = '__new__'
-
 const clientChoice = ref('')
-const newClientName = ref('')
-const selectedSkuId = ref('')
+const selectedSkuId = ref(props.initialSkuId ?? '')
 const quantity = ref(1)
 
 interface DraftLine {
@@ -44,6 +51,30 @@ function availabilityOf(skuId: string): number {
   return availableBySku.value.get(skuId) ?? 0
 }
 
+const clientOptions = computed<ComboOption[]>(() =>
+  clients.value.map((client) => ({ value: client.id, label: client.name })),
+)
+
+const skuOptions = computed<ComboOption[]>(() =>
+  catalog.value.flatMap((group) =>
+    group.skus.map((sku) => {
+      const unavailable = props.type === 'anticipated' && availabilityOf(sku.id) <= 0
+      const unpriced = sku.price === null
+      return {
+        value: sku.id,
+        label: sku.label ? `${group.product.name} (${sku.label})` : group.product.name,
+        hint: unpriced
+          ? 'no price'
+          : unavailable
+            ? `no stock · ${formatMoney(sku.price!)}`
+            : `${formatMoney(sku.price!)} · ${availabilityOf(sku.id)} available`,
+        disabled: unpriced || unavailable,
+        disabledReason: unpriced ? 'No price set' : 'Out of stock',
+      }
+    }),
+  ),
+)
+
 /** Remaining stock for the picked SKU once lines already added are accounted for. */
 const remainingForSelected = computed<number | null>(() => {
   if (props.type !== 'anticipated' || !selectedSkuId.value) return null
@@ -57,9 +88,12 @@ const runningTotal = computed(() =>
   lines.value.reduce((sum, line) => sum + line.price * line.quantity, 0),
 )
 
-const canSubmit = computed(
-  () => lines.value.length > 0 && (clientChoice.value === NEW_CLIENT || clientChoice.value !== ''),
-)
+const canSubmit = computed(() => lines.value.length > 0 && clientChoice.value !== '')
+
+function onCreateClient(query: string) {
+  const id = clientsStore.addClient(query.trim())
+  clientChoice.value = id
+}
 
 function addLine() {
   error.value = ''
@@ -107,7 +141,6 @@ function removeLine(skuId: string) {
 
 function resetForm() {
   clientChoice.value = ''
-  newClientName.value = ''
   selectedSkuId.value = ''
   quantity.value = 1
   lines.value = []
@@ -120,22 +153,13 @@ function submit() {
     error.value = 'Add at least one product.'
     return
   }
-  let clientId = clientChoice.value
-  if (clientId === NEW_CLIENT) {
-    const name = newClientName.value.trim()
-    if (!name) {
-      error.value = 'Enter the new client name.'
-      return
-    }
-    clientId = clientsStore.addClient(name)
-  }
-  if (!clientId) {
+  if (!clientChoice.value) {
     error.value = 'Pick a client.'
     return
   }
   const result = tandasStore.addSale({
     tandaId: props.tandaId,
-    clientId,
+    clientId: clientChoice.value,
     items: lines.value.map((line) => ({ skuId: line.skuId, quantity: line.quantity })),
   })
   if (!result.ok) {
@@ -143,46 +167,34 @@ function submit() {
     return
   }
   resetForm()
+  emit('submitted')
 }
 </script>
 
 <template>
-  <section class="card">
+  <section class="card sale-form">
     <h2>New sale</h2>
 
     <div class="field">
       <label class="label" for="sale-client">Client</label>
-      <select id="sale-client" v-model="clientChoice" class="select">
-        <option value="" disabled>Pick a client…</option>
-        <option v-for="client in clients" :key="client.id" :value="client.id">
-          {{ client.name }}
-        </option>
-        <option :value="NEW_CLIENT">+ New client…</option>
-      </select>
-      <input
-        v-if="clientChoice === NEW_CLIENT"
-        v-model="newClientName"
-        class="input new-client-input"
-        placeholder="Client name"
+      <Combobox
+        v-model="clientChoice"
+        :options="clientOptions"
+        input-id="sale-client"
+        placeholder="Search or create a client…"
+        allow-create
+        @create="onCreateClient"
       />
     </div>
 
     <div class="field">
       <label class="label" for="sale-sku">Product</label>
-      <select id="sale-sku" v-model="selectedSkuId" class="select">
-        <option value="" disabled>Pick a product…</option>
-        <optgroup v-for="group in catalog" :key="group.product.id" :label="group.product.name">
-          <option
-            v-for="sku in group.skus"
-            :key="sku.id"
-            :value="sku.id"
-            :disabled="sku.price === null"
-          >
-            {{ sku.label || 'Default' }} —
-            {{ sku.price === null ? 'no price' : formatMoney(sku.price) }}
-          </option>
-        </optgroup>
-      </select>
+      <Combobox
+        v-model="selectedSkuId"
+        :options="skuOptions"
+        input-id="sale-sku"
+        placeholder="Search a product…"
+      />
       <p
         v-if="remainingForSelected !== null"
         class="muted"
@@ -234,10 +246,6 @@ function submit() {
 <style scoped>
 h2 {
   margin-bottom: var(--space-4);
-}
-
-.new-client-input {
-  margin-top: var(--space-2);
 }
 
 .qty-input {

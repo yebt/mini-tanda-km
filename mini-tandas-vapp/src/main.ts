@@ -7,8 +7,10 @@ import App from '@core/App.vue'
 import router from '@core/router'
 import { initDatabase } from '@shared/db/database'
 import { loadSettings } from '@shared/db/settings'
+import { initTheme } from '@shared/ui/useTheme'
 
 async function bootstrap() {
+  initTheme()
   await initDatabase()
   loadSettings()
 

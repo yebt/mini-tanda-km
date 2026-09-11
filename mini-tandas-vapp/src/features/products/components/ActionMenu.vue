@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
+import { MoreVertical } from 'lucide-vue-next'
+
 const emit = defineEmits<{
   edit: []
   remove: []
@@ -34,7 +36,7 @@ function onRemove() {
       @click.stop="open = !open"
       @keydown.escape.prevent="close"
     >
-      ⋮
+      <MoreVertical :size="18" />
     </button>
     <div v-if="open" class="menu-backdrop" @click="close" />
     <div v-if="open" class="menu" role="menu">
@@ -53,11 +55,12 @@ function onRemove() {
 }
 
 .kebab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   background: transparent;
   color: var(--color-ink-soft);
-  font-size: 1.2rem;
-  line-height: 1;
   padding: 0.2rem 0.5rem;
   border-radius: var(--radius-small);
   cursor: pointer;
