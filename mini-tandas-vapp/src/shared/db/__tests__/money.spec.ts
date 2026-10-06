@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import initSqlJs from 'sql.js'
 
-import { all, exportPayload, get, importAllData, openWithInstance } from '../database'
+import { all, exportPayload, get, importAllData, openWithInstance, SCHEMA_VERSION } from '../database'
 import { fromCents, toCents } from '../money'
 import { addPayment, createClient, listClients, listPayments } from '../repos/clients'
 import {
@@ -125,7 +125,7 @@ describe('database migration v1 → v2 (REAL → integer cents)', () => {
 
     openWithInstance(legacy)
 
-    expect(get('PRAGMA user_version')).toEqual({ user_version: 2 })
+    expect(get('PRAGMA user_version')).toEqual({ user_version: SCHEMA_VERSION })
     expect(all('SELECT price FROM products ORDER BY id')).toEqual([
       { price: 8990 },
       { price: null },
@@ -146,7 +146,7 @@ describe('backup compatibility', () => {
     const { sku, clientId, tandaId } = setup(89.9)
     createSale({ tandaId, clientId, items: [{ skuId: sku.id, quantity: 2 }] })
     const payload = JSON.parse(JSON.stringify(exportPayload()))
-    expect(payload).toMatchObject({ app: 'mini-tanda', schemaVersion: 2 })
+    expect(payload).toMatchObject({ app: 'mini-tanda', schemaVersion: SCHEMA_VERSION })
 
     const SQL = await initSqlJs()
     openWithInstance(new SQL.Database())

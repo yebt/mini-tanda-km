@@ -133,6 +133,48 @@ test('anticipated tanda: stock in open, sales open once ready', async ({ page })
   await expect(page.getByText('100.00').first()).toBeVisible()
 })
 
+test('product without variations: one global price, stocked and sold', async ({ page }) => {
+  await page.goto('/')
+
+  await page.getByRole('link', { name: 'Products' }).click()
+  await page.getByRole('button', { name: 'New product' }).click()
+  await page.locator('#product-name').fill('Cookies box')
+  await page.locator('#product-price').fill('120')
+  await page.locator('button[type="submit"].btn-primary').click()
+
+  await page.getByRole('link', { name: 'Clients' }).click()
+  await page.getByPlaceholder('Client name').fill('Ana')
+  await page.getByRole('button', { name: 'Add client' }).click()
+
+  await page.getByRole('link', { name: 'Tandas' }).click()
+  await page.getByRole('button', { name: 'New tanda' }).click()
+  await page.locator('#tanda-type').selectOption('anticipated')
+  await page.getByRole('button', { name: 'Create tanda' }).click()
+
+  // The single default SKU can be stocked…
+  await page.getByRole('tab', { name: 'Inventory' }).click()
+  const inventorySection = page.locator('section', {
+    has: page.getByRole('heading', { name: 'Inventory' }),
+  })
+  const defaultRow = inventorySection.locator('tr', { hasText: 'Default' })
+  await defaultRow.locator('input.qty-input').fill('4')
+  await defaultRow.locator('input.qty-input').press('Tab')
+  await page.getByRole('button', { name: 'Advance to production' }).click()
+  await page.getByRole('button', { name: 'Advance to ready' }).click()
+
+  // …and sold from the sale picker at the global price.
+  await page.getByRole('tab', { name: 'Sales' }).click()
+  await page.getByRole('button', { name: 'New sale' }).click()
+  await page.locator('#sale-client').fill('An')
+  await page.getByRole('option', { name: 'Ana' }).click()
+  await page.locator('#sale-sku').fill('Cookies')
+  await page.getByRole('option', { name: /Cookies box/ }).click()
+  await page.getByLabel('Quantity').fill('2')
+  await page.getByRole('button', { name: 'Add line' }).click()
+  await page.getByRole('button', { name: 'Add sale' }).click()
+  await expect(page.getByText('240.00').first()).toBeVisible()
+})
+
 test('mobile shell: bottom nav, back button and floating create button', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')

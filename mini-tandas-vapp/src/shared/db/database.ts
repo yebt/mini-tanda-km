@@ -203,7 +203,7 @@ export function openWithInstance(instance: Database): void {
 }
 
 /** Current schema version (PRAGMA user_version). */
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 
 /** Columns holding money, stored as integer cents since schema v2. */
 const MONEY_COLUMNS: Record<string, string[]> = {
@@ -219,6 +219,7 @@ const MONEY_COLUMNS: Record<string, string[]> = {
  * v0 → v1: per-SKU prices move from skus.price to sku_prices so pricing can
  * depend on a subset of variations.
  * v1 → v2: money columns move from REAL currency units to integer cents.
+ * v2 → v3: products without variation options get their single default SKU.
  */
 function migrate(): void {
   const d = requireDb()
@@ -252,6 +253,41 @@ function migrate(): void {
       d.run('ROLLBACK')
       throw error
     }
+  }
+  if (version < 3) {
+    d.run('BEGIN')
+    try {
+      ensureDefaultSkus()
+      d.run('PRAGMA user_version = 3')
+      d.run('COMMIT')
+    } catch (error) {
+      d.run('ROLLBACK')
+      throw error
+    }
+  }
+}
+
+/**
+ * A product whose variations have no options (or that has none at all) is
+ * sold as one SKU with an empty option set. Older app versions never created
+ * it; insert it for every such product that has no SKU yet. Idempotent.
+ */
+function ensureDefaultSkus(): void {
+  const d = requireDb()
+  const missing = all<{ id: string }>(
+    `SELECT p.id FROM products p
+     WHERE NOT EXISTS (SELECT 1 FROM skus s WHERE s.product_id = p.id)
+       AND NOT EXISTS (
+         SELECT 1 FROM variations v
+         JOIN variation_options o ON o.variation_id = v.id
+         WHERE v.product_id = p.id
+       )`,
+  )
+  for (const product of missing) {
+    d.run("INSERT INTO skus (id, product_id, option_ids, price) VALUES (?, ?, '[]', NULL)", [
+      uid(),
+      product.id,
+    ])
   }
 }
 
@@ -418,6 +454,8 @@ export function importAllData(payload: unknown): number {
         inserted++
       }
     }
+    // Backups from older versions lack the default SKU of simple products.
+    ensureDefaultSkus()
   })
   return inserted
 }

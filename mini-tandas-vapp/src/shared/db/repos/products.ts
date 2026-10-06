@@ -84,18 +84,22 @@ export interface ProductInput {
 
 export function createProduct(input: ProductInput): string {
   const id = uid()
-  run(
-    'INSERT INTO products (id, name, description, photo, price_mode, price, price_variation_ids) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [
-      id,
-      input.name,
-      input.description,
-      input.photo,
-      input.priceMode,
-      toCentsOrNull(input.price),
-      JSON.stringify(input.priceVariationIds ?? []),
-    ],
-  )
+  transaction(() => {
+    run(
+      'INSERT INTO products (id, name, description, photo, price_mode, price, price_variation_ids) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [
+        id,
+        input.name,
+        input.description,
+        input.photo,
+        input.priceMode,
+        toCentsOrNull(input.price),
+        JSON.stringify(input.priceVariationIds ?? []),
+      ],
+    )
+    // A product without variations is sold as its single default SKU.
+    recomputeSkus(id)
+  })
   return id
 }
 
@@ -212,7 +216,9 @@ export function getSku(id: string): Sku | null {
 /**
  * Keep the skus table in sync with the cartesian product of variation
  * options: insert missing combinations, drop orphaned ones. Existing
- * prices survive because rows are keyed by their option-id set.
+ * prices survive because rows are keyed by their option-id set. A product
+ * without option-bearing variations keeps exactly one SKU with an empty
+ * option set (the empty combination), priced by the product's price.
  */
 function recomputeSkus(productId: string): void {
   const product = getProduct(productId)
@@ -225,9 +231,6 @@ function recomputeSkus(productId: string): void {
         : combinations.flatMap((combo) => variation.options.map((option) => [...combo, option.id])),
     [[]],
   )
-  if (desired.length === 1 && desired[0]?.length === 0) {
-    desired.length = 0
-  }
   const desiredKeys = new Set(desired.map((combo) => JSON.stringify([...combo].sort())))
   for (const combo of desired) {
     const key = JSON.stringify([...combo].sort())
