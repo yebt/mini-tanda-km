@@ -273,6 +273,68 @@ export interface SaleItemInput {
 
 export type CreateSaleResult = { ok: true; saleId: string } | { ok: false; error: string }
 
+interface PricedItem {
+  skuId: string
+  quantity: number
+  unitPrice: number
+}
+
+type PricingResult = { ok: true; items: PricedItem[] } | { ok: false; error: string }
+
+/**
+ * Resolve unit prices and check stock for a sale's lines (shared by create
+ * and edit). `keepPrices` pins the snapshot price of lines the sale already
+ * had, so an edit never reprices them; `ownQuantities` gives the sale's own
+ * units back before the stock check, so keeping or shrinking lines never
+ * fails against itself.
+ */
+function priceSaleItems(
+  tanda: Pick<Tanda, 'id' | 'type'>,
+  items: SaleItemInput[],
+  options: { keepPrices?: Map<string, number>; ownQuantities?: Map<string, number> } = {},
+): PricingResult {
+  if (items.length === 0) return { ok: false, error: 'Add at least one product' }
+
+  // Resolve prices first; refuse the whole sale if anything is unpriced.
+  const priced: PricedItem[] = []
+  for (const item of items) {
+    const sku = getSku(item.skuId)
+    const product = sku ? getProduct(sku.productId) : null
+    if (!sku || !product) return { ok: false, error: 'Unknown product' }
+    const price = options.keepPrices?.get(item.skuId) ?? resolvePrice(product, sku)
+    if (price === null) return { ok: false, error: `"${product.name}" has no price set` }
+    priced.push({ skuId: sku.id, quantity: item.quantity, unitPrice: price })
+  }
+
+  // Anticipated tandas cannot sell more than what was produced.
+  if (tanda.type === 'anticipated') {
+    const available = new Map(
+      listInventory(tanda.id).map((entry) => [entry.sku.id, entry.available]),
+    )
+    for (const [skuId, quantity] of options.ownQuantities ?? []) {
+      available.set(skuId, (available.get(skuId) ?? 0) + quantity)
+    }
+    for (const item of priced) {
+      const remaining = available.get(item.skuId)
+      if (remaining === undefined || remaining < item.quantity) {
+        return { ok: false, error: `Not enough stock for ${item.quantity}× item` }
+      }
+      available.set(item.skuId, remaining - item.quantity)
+    }
+  }
+
+  return { ok: true, items: priced }
+}
+
+function insertSaleItems(saleId: string, items: PricedItem[]): void {
+  for (const item of items) {
+    run(
+      'INSERT INTO sale_items (id, sale_id, sku_id, quantity, unit_price) VALUES (?, ?, ?, ?, ?)',
+      [uid(), saleId, item.skuId, item.quantity, item.unitPrice],
+    )
+  }
+}
+
 export function createSale(input: {
   tandaId: string
   clientId: string
@@ -282,36 +344,9 @@ export function createSale(input: {
   if (!tanda) return { ok: false, error: 'Tanda not found' }
   if (!canSell(tanda)) return { ok: false, error: SALES_CLOSED }
   if (!getClient(input.clientId)) return { ok: false, error: 'Client not found' }
-  if (input.items.length === 0) return { ok: false, error: 'Add at least one product' }
 
-  // Resolve prices first; refuse the whole sale if anything is unpriced.
-  const priced = input.items.map((item) => {
-    const sku = getSku(item.skuId)
-    const product = sku ? getProduct(sku.productId) : null
-    if (!sku || !product) return { error: 'Unknown product' } as const
-    const price = resolvePrice(product, sku)
-    if (price === null) return { error: `"${product.name}" has no price set` } as const
-    return { sku, quantity: item.quantity, unitPrice: price } as const
-  })
-  const errorItem = priced.find((item) => 'error' in item)
-  if (errorItem && 'error' in errorItem) {
-    return { ok: false, error: errorItem.error ?? 'Invalid item' }
-  }
-
-  // Anticipated tandas cannot sell more than what was produced.
-  if (tanda.type === 'anticipated') {
-    const available = new Map(
-      listInventory(tanda.id).map((entry) => [entry.sku.id, entry.available]),
-    )
-    for (const item of priced) {
-      if ('error' in item) continue
-      const remaining = available.get(item.sku.id)
-      if (remaining === undefined || remaining < item.quantity) {
-        return { ok: false, error: `Not enough stock for ${item.quantity}× item` }
-      }
-      available.set(item.sku.id, remaining - item.quantity)
-    }
-  }
+  const priced = priceSaleItems(tanda, input.items)
+  if (!priced.ok) return priced
 
   const saleId = uid()
   transaction(() => {
@@ -319,13 +354,7 @@ export function createSale(input: {
       'INSERT INTO sales (id, tanda_id, client_id, delivered, created_at) VALUES (?, ?, ?, 0, ?)',
       [saleId, input.tandaId, input.clientId, nowIso()],
     )
-    for (const item of priced) {
-      if ('error' in item) continue
-      run(
-        'INSERT INTO sale_items (id, sale_id, sku_id, quantity, unit_price) VALUES (?, ?, ?, ?, ?)',
-        [uid(), saleId, item.sku.id, item.quantity, item.unitPrice],
-      )
-    }
+    insertSaleItems(saleId, priced.items)
   })
   return { ok: true, saleId }
 }
@@ -342,59 +371,26 @@ export function updateSale(saleId: string, items: SaleItemInput[]): CreateSaleRe
   )
   if (!sale) return { ok: false, error: 'Sale not found' }
   if (!canSell(sale)) return { ok: false, error: SALES_CLOSED }
-  if (items.length === 0) return { ok: false, error: 'Add at least one product' }
 
   const previousItems = all<{ sku_id: string; quantity: number; unit_price: number }>(
     'SELECT sku_id, quantity, unit_price FROM sale_items WHERE sale_id = ?',
     [saleId],
   )
-  const previousPrices = new Map(previousItems.map((row) => [row.sku_id, row.unit_price]))
+  const keepPrices = new Map(previousItems.map((row) => [row.sku_id, row.unit_price]))
   const ownQuantities = new Map<string, number>()
   for (const row of previousItems) {
     ownQuantities.set(row.sku_id, (ownQuantities.get(row.sku_id) ?? 0) + row.quantity)
   }
 
-  const priced = items.map((item) => {
-    const sku = getSku(item.skuId)
-    const product = sku ? getProduct(sku.productId) : null
-    if (!sku || !product) return { error: 'Unknown product' } as const
-    const price = previousPrices.get(item.skuId) ?? resolvePrice(product, sku)
-    if (price === null) return { error: `"${product.name}" has no price set` } as const
-    return { sku, quantity: item.quantity, unitPrice: price } as const
+  const priced = priceSaleItems({ id: sale.tanda_id, type: sale.type }, items, {
+    keepPrices,
+    ownQuantities,
   })
-  const errorItem = priced.find((item) => 'error' in item)
-  if (errorItem && 'error' in errorItem) {
-    return { ok: false, error: errorItem.error ?? 'Invalid item' }
-  }
-
-  if (sale.type === 'anticipated') {
-    const available = new Map(
-      listInventory(sale.tanda_id).map((entry) => [entry.sku.id, entry.available]),
-    )
-    // Give the sale's own quantities back before checking, so keeping or
-    // shrinking existing lines never fails against itself.
-    for (const [skuId, quantity] of ownQuantities) {
-      available.set(skuId, (available.get(skuId) ?? 0) + quantity)
-    }
-    for (const item of priced) {
-      if ('error' in item) continue
-      const remaining = available.get(item.sku.id)
-      if (remaining === undefined || remaining < item.quantity) {
-        return { ok: false, error: `Not enough stock for ${item.quantity}× item` }
-      }
-      available.set(item.sku.id, remaining - item.quantity)
-    }
-  }
+  if (!priced.ok) return priced
 
   transaction(() => {
     run('DELETE FROM sale_items WHERE sale_id = ?', [saleId])
-    for (const item of priced) {
-      if ('error' in item) continue
-      run(
-        'INSERT INTO sale_items (id, sale_id, sku_id, quantity, unit_price) VALUES (?, ?, ?, ?, ?)',
-        [uid(), saleId, item.sku.id, item.quantity, item.unitPrice],
-      )
-    }
+    insertSaleItems(saleId, priced.items)
   })
   return { ok: true, saleId }
 }

@@ -30,8 +30,8 @@ Rules that live only in the UI break as soon as a second caller appears (import,
 Branch `fix/domain-hardening`, one Conventional Commit per task. Strategy: ask-on-risk; forecast > 400 authored lines, so chain/PR strategy is decided by the user at PR time (no push/PR authorized).
 
 ## Tasks
-- [x] T1 Pure domain module for tanda rules (`canSell`, `canDeliver`, `canEditInventory`, `canTransition`), enforced in repos and reused by components, with unit tests.
-- [ ] T2 Shared price+stock helper used by `createSale` and `updateSale` (remove duplication).
+- [x] T1 (3e7eb97) Pure domain module for tanda rules (`canSell`, `canDeliver`, `canEditInventory`, `canTransition`), enforced in repos and reused by components, with unit tests.
+- [x] T2 Shared price+stock helper used by `createSale` and `updateSale` (remove duplication).
 - [ ] T3 Harden `importAllData` (whitelist columns per table) + export/import round-trip test.
 - [ ] T4 Persistence flush on `visibilitychange`/`pagehide`.
 - [ ] T5 Money stored as integer cents (schema migration, formatting unchanged for the user) + tests.
@@ -51,5 +51,10 @@ Delegated direct (writer trigger: 2+ non-trivial files per task). RDD: off (glob
 - RED observed: domain module missing (suite failed) and 5 repo rejection tests failing before enforcement.
 - Checks: `bun run test:unit --run`: 37 passed; `bun run type-check`: pass; `bun run lint`: pass.
 
+### T2 — shared price/stock helper (done)
+- `priceSaleItems(tanda, items, { keepPrices, ownQuantities })` + `insertSaleItems` in `repos/tandas.ts`, used by `createSale` and `updateSale`; snapshot prices and own-quantity give-back preserved.
+- Refactor under existing coverage (no meaningful RED); added a characterization test for edit pricing (old line keeps snapshot, new line takes current price, unknown SKU refused).
+- Checks: `bun run test:unit --run`: 38 passed; `bun run type-check`: pass; `bun run lint`: pass.
+
 ## Next step
-T2.
+T3.

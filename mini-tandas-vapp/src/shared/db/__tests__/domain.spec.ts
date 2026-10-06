@@ -393,6 +393,36 @@ describe('editing sales', () => {
     })
   })
 
+  it('resolves the current price only for newly added SKUs and refuses unpriced ones', () => {
+    const { productId, personal, personalRv, chocoPersonal, clientId, tandaId } = setup()
+    const saleResult = createSale({
+      tandaId,
+      clientId,
+      items: [{ skuId: personalRv.id, quantity: 1 }],
+    })
+    if (!saleResult.ok) throw new Error('expected sale')
+
+    setPriceRow(productId, [personal], 95)
+    expect(
+      updateSale(saleResult.saleId, [
+        { skuId: personalRv.id, quantity: 1 },
+        { skuId: chocoPersonal.id, quantity: 1 },
+      ]).ok,
+    ).toBe(true)
+    // Old line keeps 90, the new line takes today's 95.
+    expect(listSales(tandaId)[0]!.total).toBe(90 + 95)
+
+    setPriceRow(productId, [personal], null)
+    const withUnknown = updateSale(saleResult.saleId, [
+      { skuId: personalRv.id, quantity: 1 },
+      { skuId: 'unknown-sku', quantity: 1 },
+    ])
+    expect(withUnknown).toEqual({ ok: false, error: 'Unknown product' })
+    // Removing a priced line and keeping the snapshot one still works without a current price.
+    expect(updateSale(saleResult.saleId, [{ skuId: personalRv.id, quantity: 3 }]).ok).toBe(true)
+    expect(listSales(tandaId)[0]!.total).toBe(270)
+  })
+
   it('lets an anticipated sale keep its own stock while editing, but not exceed it', () => {
     const { personalRv, clientId } = setup()
     const tandaId = createTanda({ name: 'TA', date: '2026-09-22', type: 'anticipated' })
