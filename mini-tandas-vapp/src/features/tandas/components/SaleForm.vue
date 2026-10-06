@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Minus, Plus, X } from 'lucide-vue-next'
 
 import { formatMoney } from '@shared/db/format'
@@ -8,6 +8,8 @@ import { useClientsStore } from '@shared/stores/clients'
 import { useProductsStore } from '@shared/stores/products'
 import { useTandasStore } from '@shared/stores/tandas'
 import Combobox, { type ComboOption } from '@shared/ui/Combobox.vue'
+
+import { useSaleDraft, type DraftLine } from '../composables/useSaleDraft'
 
 const props = defineProps<{
   tandaId: string
@@ -27,98 +29,42 @@ const clientsStore = useClientsStore()
 const productsStore = useProductsStore()
 
 const clientChoice = ref(props.initialSale?.clientId ?? '')
-const selectedSkuId = ref(props.initialSale ? '' : (props.initialSkuId ?? ''))
-const quantity = ref(1)
 
-interface DraftLine {
-  skuId: string
-  label: string
-  price: number
-  quantity: number
-}
-
-const lines = ref<DraftLine[]>(
-  props.initialSale?.items.map((line) => ({
-    skuId: line.skuId,
-    label: line.label,
-    price: line.unitPrice,
-    quantity: line.quantity,
-  })) ?? [],
-)
-const error = ref('')
+const {
+  selectedSkuId,
+  quantity,
+  lines,
+  error,
+  skuOptions,
+  remainingForSelected,
+  canBumpQtyUp,
+  runningTotal,
+  lineCap,
+  lineStockLabel,
+  bumpQty,
+  addLine: addDraftLine,
+  bumpLine,
+  setLineQuantity,
+  removeLine,
+  reset,
+  items,
+} = useSaleDraft({
+  type: () => props.type,
+  catalog: () => productsStore.catalog,
+  inventory: () => tandasStore.inventoryFor(props.tandaId),
+  initialSkuId: props.initialSkuId,
+  initialSale: props.initialSale,
+})
 
 const skuCombo = ref<InstanceType<typeof Combobox> | null>(null)
 
 const isEdit = computed(() => props.initialSale !== undefined)
 
-const catalog = computed(() => productsStore.catalog)
-const clients = computed(() => clientsStore.clients)
-
-const inventory = computed(() =>
-  props.type === 'anticipated' ? tandasStore.inventoryFor(props.tandaId) : [],
-)
-const availableBySku = computed(
-  () => new Map(inventory.value.map((entry) => [entry.sku.id, entry.available])),
-)
-
-function availabilityOf(skuId: string): number {
-  return availableBySku.value.get(skuId) ?? 0
-}
-
-/** Stock the current draft may take for a SKU: batch availability plus what the
- *  sale being edited already holds (so it never fails against itself). */
-function stockLimitOf(skuId: string): number {
-  const own = props.initialSale?.items.find((line) => line.skuId === skuId)?.quantity ?? 0
-  return availabilityOf(skuId) + own
-}
-
 const clientOptions = computed<ComboOption[]>(() =>
-  clients.value.map((client) => ({ value: client.id, label: client.name })),
-)
-
-const skuOptions = computed<ComboOption[]>(() =>
-  catalog.value.flatMap((group) =>
-    group.skus.map((sku) => {
-      const unavailable = props.type === 'anticipated' && availabilityOf(sku.id) <= 0
-      const unpriced = sku.price === null
-      return {
-        value: sku.id,
-        label: sku.label ? `${group.product.name} (${sku.label})` : group.product.name,
-        hint: unpriced
-          ? 'no price'
-          : unavailable
-            ? `no stock · ${formatMoney(sku.price!)}`
-            : `${formatMoney(sku.price!)} · ${availabilityOf(sku.id)} available`,
-        disabled: unpriced || unavailable,
-        disabledReason: unpriced ? 'No price set' : 'Out of stock',
-      }
-    }),
-  ),
-)
-
-/** Remaining stock for the picked SKU once lines already added are accounted for. */
-const remainingForSelected = computed<number | null>(() => {
-  if (props.type !== 'anticipated' || !selectedSkuId.value) return null
-  const inLines = lines.value
-    .filter((line) => line.skuId === selectedSkuId.value)
-    .reduce((sum, line) => sum + line.quantity, 0)
-  return stockLimitOf(selectedSkuId.value) - inLines
-})
-
-const canBumpQtyUp = computed(
-  () => remainingForSelected.value === null || quantity.value < remainingForSelected.value,
-)
-
-const runningTotal = computed(() =>
-  lines.value.reduce((sum, line) => sum + line.price * line.quantity, 0),
+  clientsStore.clients.map((client) => ({ value: client.id, label: client.name })),
 )
 
 const canSubmit = computed(() => lines.value.length > 0 && clientChoice.value !== '')
-
-// Any edit to the pending line clears a stale error from the previous attempt.
-watch([selectedSkuId, quantity], () => {
-  error.value = ''
-})
 
 /** Focus the product search so the next product can be typed immediately. */
 function focusSkuSearch() {
@@ -132,60 +78,8 @@ function onCreateClient(query: string) {
   clientChoice.value = id
 }
 
-/** Upper bound a line may reach: batch stock (plus the edit sale's own) or none. */
-function lineCap(line: DraftLine): number {
-  return props.type === 'anticipated' ? stockLimitOf(line.skuId) : Number.POSITIVE_INFINITY
-}
-
-function bumpQty(delta: number) {
-  const base = Number.isInteger(quantity.value) && quantity.value >= 1 ? quantity.value : 1
-  const next = Math.max(1, base + delta)
-  quantity.value =
-    remainingForSelected.value === null
-      ? next
-      : Math.min(next, Math.max(remainingForSelected.value, 1))
-}
-
 function addLine() {
-  error.value = ''
-  const sku = productsStore.skus.find((s) => s.id === selectedSkuId.value)
-  if (!sku) {
-    error.value = 'Pick a product first.'
-    return
-  }
-  if (sku.price === null) {
-    error.value = `"${sku.productName}" has no price set.`
-    return
-  }
-  const qty = quantity.value
-  if (!Number.isInteger(qty) || qty < 1) {
-    error.value = 'Quantity must be a whole number of at least 1.'
-    return
-  }
-  if (props.type === 'anticipated') {
-    const alreadyInLines = lines.value
-      .filter((line) => line.skuId === sku.id)
-      .reduce((sum, line) => sum + line.quantity, 0)
-    const limit = stockLimitOf(sku.id)
-    if (alreadyInLines + qty > limit) {
-      error.value = `Only ${Math.max(limit - alreadyInLines, 0)} available for ${sku.label || sku.productName}.`
-      return
-    }
-  }
-  const existing = lines.value.find((line) => line.skuId === sku.id)
-  if (existing) {
-    existing.quantity += qty
-  } else {
-    lines.value.push({
-      skuId: sku.id,
-      label: sku.label ? `${sku.productName} (${sku.label})` : sku.productName,
-      price: sku.price,
-      quantity: qty,
-    })
-  }
-  selectedSkuId.value = ''
-  quantity.value = 1
-  focusSkuSearch()
+  if (addDraftLine()) focusSkuSearch()
 }
 
 /** Enter inside the product search adds the line once a SKU is picked. */
@@ -193,38 +87,14 @@ function onSkuEnter() {
   if (selectedSkuId.value) addLine()
 }
 
-function bumpLine(line: DraftLine, delta: number) {
-  line.quantity = Math.min(Math.max(line.quantity + delta, 1), lineCap(line))
-}
-
 function onLineQtyInput(line: DraftLine, event: Event) {
   const input = event.target as HTMLInputElement
-  const next = Number(input.value)
-  if (!Number.isInteger(next) || next < 1) {
-    input.value = String(line.quantity)
-    return
-  }
-  line.quantity = Math.min(next, lineCap(line))
-  input.value = String(line.quantity)
-}
-
-/** Remaining stock label for a line (anticipated tandas only). */
-function lineStockLabel(line: DraftLine): string | null {
-  if (props.type !== 'anticipated') return null
-  const left = Math.max(stockLimitOf(line.skuId) - line.quantity, 0)
-  return left === 0 ? 'none left' : `${left} left`
-}
-
-function removeLine(skuId: string) {
-  lines.value = lines.value.filter((line) => line.skuId !== skuId)
+  input.value = String(setLineQuantity(line, Number(input.value)))
 }
 
 function resetForm() {
   clientChoice.value = ''
-  selectedSkuId.value = ''
-  quantity.value = 1
-  lines.value = []
-  error.value = ''
+  reset()
 }
 
 function submit() {
@@ -237,10 +107,14 @@ function submit() {
     error.value = 'Pick a client.'
     return
   }
-  const items = lines.value.map((line) => ({ skuId: line.skuId, quantity: line.quantity }))
+  const saleItems = items()
   const result = props.initialSale
-    ? tandasStore.editSale(props.initialSale.id, items)
-    : tandasStore.addSale({ tandaId: props.tandaId, clientId: clientChoice.value, items })
+    ? tandasStore.editSale(props.initialSale.id, saleItems)
+    : tandasStore.addSale({
+        tandaId: props.tandaId,
+        clientId: clientChoice.value,
+        items: saleItems,
+      })
   if (!result.ok) {
     error.value = result.error
     return

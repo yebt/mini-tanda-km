@@ -2,7 +2,13 @@ import { all, get, run, transaction, uid, nowIso } from '../database'
 import { getProduct, getSku, listSkus, resolvePrice } from './products'
 import { getClient } from './clients'
 import { fromCents, toCents } from '../money'
-import { canDeliver, canEditInventory, canSell, canTransition } from '../../domain/tanda'
+import {
+  canDeliver,
+  canEditInventory,
+  canSell,
+  canTransition,
+  tracksInventory,
+} from '../../domain/tanda'
 import type {
   InventoryEntry,
   SaleLine,
@@ -314,7 +320,7 @@ function priceSaleItems(
   }
 
   // Anticipated tandas cannot sell more than what was produced.
-  if (tanda.type === 'anticipated') {
+  if (tracksInventory(tanda)) {
     const available = new Map(
       listInventory(tanda.id).map((entry) => [entry.sku.id, entry.available]),
     )

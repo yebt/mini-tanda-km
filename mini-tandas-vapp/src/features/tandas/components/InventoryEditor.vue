@@ -6,6 +6,8 @@ import { canEditInventory } from '@shared/domain/tanda'
 import { useProductsStore } from '@shared/stores/products'
 import { useTandasStore } from '@shared/stores/tandas'
 
+import { useInventoryAvailability } from '../composables/useSaleDraft'
+
 const props = defineProps<{
   tanda: Tanda
   /** Whether sales are open — enables the per-SKU "Sell" shortcut. */
@@ -22,28 +24,9 @@ const productsStore = useProductsStore()
 const editable = computed(() => canEditInventory(props.tanda))
 const catalog = computed(() => productsStore.catalog)
 
-const inventory = computed(() => tandasStore.inventoryFor(props.tanda.id))
-const producedBySku = computed(
-  () => new Map(inventory.value.map((entry) => [entry.sku.id, entry.produced])),
+const { producedOf, soldOf, availableOf } = useInventoryAvailability(() =>
+  tandasStore.inventoryFor(props.tanda.id),
 )
-const soldBySku = computed(
-  () => new Map(inventory.value.map((entry) => [entry.sku.id, entry.sold])),
-)
-const availableBySku = computed(
-  () => new Map(inventory.value.map((entry) => [entry.sku.id, entry.available])),
-)
-
-function producedOf(skuId: string): number {
-  return producedBySku.value.get(skuId) ?? 0
-}
-
-function soldOf(skuId: string): number {
-  return soldBySku.value.get(skuId) ?? 0
-}
-
-function availableOf(skuId: string): number {
-  return availableBySku.value.get(skuId) ?? 0
-}
 
 function canSellSku(skuId: string): boolean {
   return props.sellable && availableOf(skuId) > 0

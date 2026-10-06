@@ -20,9 +20,17 @@ export function canDeliver(tanda: TandaState): boolean {
   return tanda.status === 'ready' || tanda.status === 'closed'
 }
 
+/**
+ * Anticipated tandas sell against a produced batch (stock-limited);
+ * scheduled tandas take pre-orders without inventory.
+ */
+export function tracksInventory(tanda: Pick<Tanda, 'type'>): boolean {
+  return tanda.type === 'anticipated'
+}
+
 /** Only anticipated tandas have a batch inventory, editable while open. */
 export function canEditInventory(tanda: TandaState): boolean {
-  return tanda.type === 'anticipated' && tanda.status === 'open'
+  return tracksInventory(tanda) && tanda.status === 'open'
 }
 
 /** Status moves one step at a time, forward or back (open → production → ready → closed). */

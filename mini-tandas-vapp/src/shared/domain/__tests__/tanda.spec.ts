@@ -8,6 +8,7 @@ import {
   canTransition,
   nextStatus,
   previousStatus,
+  tracksInventory,
 } from '../tanda'
 
 const STATUSES: TandaStatus[] = ['open', 'production', 'ready', 'closed']
@@ -81,5 +82,12 @@ describe('nextStatus / previousStatus', () => {
     expect(nextStatus('closed')).toBeNull()
     expect(previousStatus('ready')).toBe('production')
     expect(previousStatus('open')).toBeNull()
+  })
+})
+
+describe('tracksInventory', () => {
+  it('only anticipated tandas are limited by stock', () => {
+    expect(tracksInventory({ type: 'anticipated' })).toBe(true)
+    expect(tracksInventory({ type: 'scheduled' })).toBe(false)
   })
 })

@@ -34,8 +34,8 @@ Branch `fix/domain-hardening`, one Conventional Commit per task. Strategy: ask-o
 - [x] T2 (05b64b7) Shared price+stock helper used by `createSale` and `updateSale` (remove duplication).
 - [x] T3 (bba8581) Harden `importAllData` (whitelist columns per table) + export/import round-trip test.
 - [x] T4 (33241cb) Persistence flush on `visibilitychange`/`pagehide`.
-- [x] T5 Money stored as integer cents (schema migration, formatting unchanged for the user) + tests.
-- [ ] T6 Split `SaleForm.vue` into a `useSaleDraft` composable; component/composable tests.
+- [x] T5 (63c38a5) Money stored as integer cents (schema migration, formatting unchanged for the user) + tests.
+- [x] T6 Split `SaleForm.vue` into a `useSaleDraft` composable; component/composable tests.
 - [ ] T7 Cleanup: move `shot-*.mjs` to `scripts/`, drop deprecated `Sku.price`, route settings export/import through a store.
 
 ## Route
@@ -76,5 +76,14 @@ Delegated direct (writer trigger: 2+ non-trivial files per task). RDD: off (glob
 - RED observed: 5 failing before the migration/conversion (helper tests passed once `money.ts` existed).
 - Checks: `bun run test:unit --run`: 53 passed; `bun run type-check`: pass; `bun run lint`: pass.
 
+### T6 — `useSaleDraft` composable (done)
+- `src/features/tandas/composables/useSaleDraft.ts`: `useSaleDraft` (pending SKU/qty, merged lines, product options with price/stock hints, stock caps incl. own quantities on edit, running total, `addLine`/`bumpLine`/`setLineQuantity`/`removeLine`/`reset`/`items`) and `useInventoryAvailability` (produced/sold/available lookups). Takes getters (type, catalog, inventory) so it is testable without Pinia; stores stay in the component.
+- Domain reuse: new `tracksInventory(tanda)` in `domain/tanda.ts`, used by the composable, `canEditInventory` and the repo stock check.
+- `SaleForm.vue` 614 → 484 lines (template/styles unchanged); `InventoryEditor.vue` uses `useInventoryAvailability` instead of its three maps.
+- Preserved as-is (no behavior change): scheduled product hints still read `· 0 available`.
+- RED observed: composable module missing; then 8 failures from a test-scope bug (shared `effectScope` stopped after first test), fixed in the test.
+- Checks: `bun run test:unit --run`: 63 passed; `bun run type-check`: pass; `bun run lint`: pass.
+- E2E (run early because T6 touches the sale UI): `bun run test:e2e` is unusable locally — another project's Vite dev server (`mini-tanda-cwrk`) holds port 5173 and Playwright reuses it (`reuseExistingServer`). Ran `bun run build-only && CI=1 bunx playwright test --retries=0` (preview on 4173): chromium 3/3 and firefox 3/3 passed; webkit 3/3 failed to launch (`Host system is missing dependencies to run browsers`) — environmental.
+
 ## Next step
-T6.
+T7.
