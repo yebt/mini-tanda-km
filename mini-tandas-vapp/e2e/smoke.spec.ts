@@ -188,10 +188,14 @@ test('mobile shell: bottom nav, back button and floating create button', async (
     await expect(bottomNav.getByRole('link', { name: new RegExp(section, 'i') })).toBeVisible()
   }
 
-  // No back button on the dashboard; appears deeper in the stack.
+  // No back button on top-level sections; only detail pages get one.
   await expect(page.locator('.back-btn')).toHaveCount(0)
+  await expect(page).toHaveTitle('Dashboard · Mini Tanda')
   await bottomNav.getByRole('link', { name: /Products/i }).click()
-  await expect(page.locator('.back-btn')).toBeVisible()
+  await expect(page).toHaveTitle('Products · Mini Tanda')
+  await expect(page.locator('.back-btn')).toHaveCount(0)
+  // Focus moves to the new view's heading after navigating.
+  await expect(page.getByRole('heading', { level: 1, name: 'Products' })).toBeFocused()
 
   // Floating action button creates a product on mobile.
   await page.locator('.fab').click()
@@ -218,7 +222,53 @@ test('mobile shell: bottom nav, back button and floating create button', async (
   await page.locator('.fab').click()
   await page.getByRole('button', { name: 'Create tanda' }).click()
   // Creating navigates to the detail page; go back to see the list card.
+  await expect(page.locator('.back-btn')).toBeVisible()
   await page.locator('.back-btn').click()
   await expect(page.locator('.tanda-card')).toBeVisible()
   await assertNoOverflow()
+})
+
+test('tanda detail: titled, tab kept in the URL, back works from a deep link', async ({
+  page,
+}) => {
+  await page.goto('/')
+
+  // Skip link jumps over the header to the main content.
+  await expect(page.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible()
+  await page.keyboard.press('Tab')
+  await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused()
+
+  await page.getByRole('link', { name: 'Tandas' }).first().click()
+  await page.getByRole('button', { name: 'New tanda' }).click()
+  await page.locator('#tanda-name').fill('Weekend cakes')
+  await page.locator('#tanda-type').selectOption('anticipated')
+  await page.getByRole('button', { name: 'Create tanda' }).click()
+
+  await expect(page).toHaveTitle('Weekend cakes · Tandas · Mini Tanda')
+  // The open tanda's editable name is still the page heading.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+
+  const inventoryTab = page.getByRole('tab', { name: 'Inventory' })
+  await page.getByRole('tab', { name: 'Sales' }).focus()
+  await page.keyboard.press('ArrowRight')
+  await expect(inventoryTab).toBeFocused()
+  await expect(inventoryTab).toHaveAttribute('aria-selected', 'true')
+  await expect(page).toHaveURL(/\?tab=inventory$/)
+  await expect(page.getByRole('tabpanel', { name: 'Inventory' })).toBeVisible()
+
+  // Reload (once the debounced save has landed) keeps the Inventory view.
+  await expect(async () => {
+    await page.reload()
+    await expect(page.getByRole('tab', { name: 'Inventory' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+      { timeout: 1000 },
+    )
+  }).toPass()
+
+  // Opened as a deep link on mobile: back goes to the list, not out of the app.
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(page.url())
+  await page.locator('.back-btn').click()
+  await expect(page).toHaveURL(/\/tandas$/)
 })

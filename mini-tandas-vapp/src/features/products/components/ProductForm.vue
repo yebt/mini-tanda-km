@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 
 import { useProductsStore } from '@shared/stores/products'
 import type { Product } from '@shared/db/types'
+import TabList, { panelId, tabId } from '@shared/ui/TabList.vue'
 
 import ProductGeneralTab from './ProductGeneralTab.vue'
 import ProductVariationsTab from './ProductVariationsTab.vue'
@@ -20,6 +21,15 @@ const emit = defineEmits<{
 const store = useProductsStore()
 
 type Tab = 'general' | 'variations'
+
+const TABS = [
+  { value: 'general', label: 'General' },
+  { value: 'variations', label: 'Variations & pricing' },
+] as const
+
+function onTabChange(value: string) {
+  activeTab.value = value === 'variations' ? 'variations' : 'general'
+}
 
 const activeTab = ref<Tab>('general')
 /** Id of the product currently held by the form (set on first save). */
@@ -54,69 +64,32 @@ function onSaved(id: string) {
   <div class="card product-form">
     <h2>{{ savedId ? 'Edit product' : 'New product' }}</h2>
 
-    <div class="tabs" role="tablist">
-      <button
-        type="button"
-        role="tab"
-        class="tab"
-        :class="{ active: activeTab === 'general' }"
-        :aria-selected="activeTab === 'general'"
-        @click="activeTab = 'general'"
-      >
-        General
-      </button>
-      <button
-        type="button"
-        role="tab"
-        class="tab"
-        :class="{ active: activeTab === 'variations' }"
-        :aria-selected="activeTab === 'variations'"
-        @click="activeTab = 'variations'"
-      >
-        Variations &amp; pricing
-      </button>
-    </div>
-
-    <ProductGeneralTab
-      v-if="activeTab === 'general'"
-      :initial="initial"
-      @saved="onSaved"
-      @cancel="emit('cancel')"
+    <TabList
+      :tabs="TABS"
+      :model-value="activeTab"
+      id-base="product"
+      label="Product sections"
+      @update:model-value="onTabChange"
     />
-    <ProductVariationsTab v-else :product="savedProduct" />
+
+    <div
+      :id="panelId('product', activeTab)"
+      role="tabpanel"
+      :aria-labelledby="tabId('product', activeTab)"
+    >
+      <ProductGeneralTab
+        v-if="activeTab === 'general'"
+        :initial="initial"
+        @saved="onSaved"
+        @cancel="emit('cancel')"
+      />
+      <ProductVariationsTab v-else :product="savedProduct" />
+    </div>
   </div>
 </template>
 
 <style scoped>
 .product-form {
   max-width: 640px;
-}
-
-.tabs {
-  display: flex;
-  gap: var(--space-1);
-  border-bottom: 1px solid var(--color-border);
-  margin-bottom: var(--space-4);
-}
-
-.tab {
-  border: none;
-  background: transparent;
-  padding: var(--space-2) var(--space-3);
-  margin-bottom: -1px;
-  border-bottom: 2px solid transparent;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--color-ink-soft);
-  cursor: pointer;
-}
-
-.tab:hover {
-  color: var(--color-primary);
-}
-
-.tab.active {
-  color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
 }
 </style>

@@ -10,7 +10,11 @@ import { useTandasStore } from '@shared/stores/tandas'
 import ActionMenu from '@shared/ui/ActionMenu.vue'
 import { confirmDialog } from '@shared/ui/useConfirm'
 
-const props = defineProps<{ tanda: Pick<Tanda, 'id' | 'type' | 'status'> }>()
+const props = defineProps<{
+  tanda: Pick<Tanda, 'id' | 'type' | 'status'>
+  /** Inside a "Sales" tab panel the tab already labels the list: keep the heading for structure only. */
+  hideHeading?: boolean
+}>()
 
 const emit = defineEmits<{
   edit: [sale: SaleWithDetails]
@@ -45,7 +49,7 @@ async function remove(sale: SaleWithDetails) {
 
 <template>
   <section>
-    <h2>Sales</h2>
+    <h2 :class="{ 'visually-hidden': hideHeading }">Sales</h2>
 
     <p v-if="sales.length === 0" class="card empty-state">No sales yet.</p>
 

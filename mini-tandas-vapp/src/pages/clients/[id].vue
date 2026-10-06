@@ -8,6 +8,7 @@ import PaymentForm from '@/features/clients/components/PaymentForm.vue'
 import PaymentList from '@/features/clients/components/PaymentList.vue'
 import { useClientsStore } from '@shared/stores/clients'
 import { confirmDialog } from '@shared/ui/useConfirm'
+import { usePageTitle } from '@shared/ui/usePageTitle'
 
 const route = useRoute('/clients/[id]')
 const router = useRouter()
@@ -15,6 +16,8 @@ const router = useRouter()
 const clientsStore = useClientsStore()
 
 const summary = computed(() => clientsStore.summaryFor(route.params.id))
+
+usePageTitle(() => summary.value?.name)
 
 const actionError = ref('')
 

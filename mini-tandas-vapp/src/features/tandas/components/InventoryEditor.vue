@@ -55,10 +55,9 @@ function sell(skuId: string) {
 
 <template>
   <section class="card">
-    <div class="row-between">
-      <h2>Inventory</h2>
-      <span v-if="!editable" class="muted">Locked — tanda is no longer open</span>
-    </div>
+    <!-- The "Inventory" tab labels this panel; the heading stays for structure. -->
+    <h2 class="visually-hidden">Inventory</h2>
+    <p v-if="!editable" class="muted locked-note">Locked — tanda is no longer open</p>
 
     <p v-if="catalog.length === 0" class="empty-state">No products in the catalog yet.</p>
 
@@ -163,8 +162,8 @@ function sell(skuId: string) {
 </template>
 
 <style scoped>
-h2 {
-  margin-bottom: 0;
+.locked-note {
+  margin: 0 0 var(--space-2);
 }
 
 .col-num {

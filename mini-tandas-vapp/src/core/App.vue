@@ -8,9 +8,12 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-vue-next'
+import { computed, nextTick, onBeforeUnmount, useTemplateRef } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import ConfirmDialogHost from '@shared/ui/ConfirmDialogHost.vue'
+
+import { isDetailPath, parentPath } from './router/navigation'
 
 interface NavItem {
   to: string
@@ -29,16 +32,43 @@ const navItems: readonly NavItem[] = [
 const route = useRoute()
 const router = useRouter()
 
+/** Back only on detail pages; the bottom nav handles top-level sections. */
+const showBack = computed(() => isDetailPath(route.path))
+
 function goBack(): void {
-  router.back()
+  // Deep link (no in-app history): go to the parent list instead of leaving the app.
+  const state = window.history.state as { back?: string | null } | null
+  if (state?.back) router.back()
+  else void router.push(parentPath(route.path))
 }
+
+const main = useTemplateRef<HTMLElement>('main')
+
+/** After a page change, move focus to the new view's heading so it is announced. */
+function focusView(): void {
+  const container = main.value
+  if (!container) return
+  const heading = container.querySelector<HTMLElement>('h1')
+  const target = heading ?? container
+  if (heading) heading.tabIndex = -1
+  target.focus()
+}
+
+const removeAfterEach = router.afterEach((to, from, failure) => {
+  // Skip the initial load and query-only changes (e.g. switching tabs).
+  if (failure || from.matched.length === 0 || to.path === from.path) return
+  void nextTick(focusView)
+})
+onBeforeUnmount(removeAfterEach)
 </script>
 
 <template>
+  <a href="#main" class="skip-link">Skip to content</a>
+
   <header class="app-header">
     <div class="app-header-inner">
       <button
-        v-if="route.path !== '/'"
+        v-if="showBack"
         type="button"
         class="back-btn mobile-only"
         aria-label="Go back"
@@ -58,7 +88,7 @@ function goBack(): void {
     </div>
   </header>
 
-  <main class="app-main">
+  <main id="main" ref="main" class="app-main" tabindex="-1">
     <RouterView />
   </main>
 
@@ -132,6 +162,7 @@ function goBack(): void {
 }
 
 .app-main {
+  outline: none;
   max-width: 960px;
   margin: 0 auto;
   padding: var(--space-6) var(--space-4);

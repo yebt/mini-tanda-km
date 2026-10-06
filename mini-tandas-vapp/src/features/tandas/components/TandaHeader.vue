@@ -56,12 +56,15 @@ function saveDate() {
     <div class="row-between">
       <div>
         <div v-if="editable" class="row header-edit">
-          <input
-            v-model="name"
-            class="input name-input"
-            aria-label="Tanda name"
-            @change="saveName"
-          />
+          <!-- The editable name is still the page heading (its value names the h1). -->
+          <h1 class="name-heading">
+            <input
+              v-model="name"
+              class="input name-input"
+              aria-label="Tanda name"
+              @change="saveName"
+            />
+          </h1>
           <input
             v-model="date"
             class="input date-input"
@@ -86,10 +89,15 @@ function saveDate() {
   flex-wrap: wrap;
 }
 
-.name-input {
+.name-heading {
   max-width: 22rem;
   min-width: 0;
   flex: 1;
+  margin: 0;
+  font-size: inherit;
+}
+
+.name-input {
   font-weight: 700;
 }
 

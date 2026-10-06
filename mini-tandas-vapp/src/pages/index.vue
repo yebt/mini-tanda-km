@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 import { useClientsStore } from '@shared/stores/clients'
 import { useProductsStore } from '@shared/stores/products'
 import { useTandasStore } from '@shared/stores/tandas'
@@ -8,28 +10,30 @@ const clientsStore = useClientsStore()
 const productsStore = useProductsStore()
 const tandasStore = useTandasStore()
 
-const nextActions = tandasStore.activeTandas.slice(0, 5)
+const nextActions = computed(() => tandasStore.activeTandas.slice(0, 5))
 </script>
 
 <template>
+  <h1 class="page-title">Dashboard</h1>
+
   <div class="row-wrap dashboard-cards">
     <section class="card stat-card">
-      <h2 class="stat-value">{{ tandasStore.activeTandas.length }}</h2>
-      <p class="muted">active tandas</p>
+      <h2 class="stat-label">Active tandas</h2>
+      <p class="stat-value">{{ tandasStore.activeTandas.length }}</p>
       <RouterLink to="/tandas" class="btn btn-ghost">View tandas</RouterLink>
     </section>
 
     <section class="card stat-card">
-      <h2 class="stat-value" :class="{ 'money-negative': clientsStore.totalOwed > 0 }">
+      <h2 class="stat-label">Owed by clients</h2>
+      <p class="stat-value money" :class="{ 'money-negative': clientsStore.totalOwed > 0 }">
         {{ formatMoney(clientsStore.totalOwed) }}
-      </h2>
-      <p class="muted">owed by clients</p>
+      </p>
       <RouterLink to="/clients" class="btn btn-ghost">View clients</RouterLink>
     </section>
 
     <section class="card stat-card">
-      <h2 class="stat-value">{{ productsStore.products.length }}</h2>
-      <p class="muted">products</p>
+      <h2 class="stat-label">Products</h2>
+      <p class="stat-value">{{ productsStore.products.length }}</p>
       <RouterLink to="/products" class="btn btn-ghost">View products</RouterLink>
     </section>
   </div>
@@ -67,15 +71,38 @@ const nextActions = tandasStore.activeTandas.slice(0, 5)
   margin-bottom: var(--space-4);
 }
 
+.page-title {
+  margin-bottom: var(--space-4);
+}
+
 .stat-card {
   flex: 1 1 180px;
   margin-bottom: 0;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* The label is the heading; the value reads first visually. */
+.stat-label {
+  order: 2;
+  margin: 0 0 var(--space-2);
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--color-ink-soft);
 }
 
 .stat-value {
+  order: 1;
+  margin: 0 0 var(--space-1);
   font-size: 1.8rem;
-  margin-bottom: var(--space-1);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.stat-card .btn {
+  order: 3;
 }
 
 .upcoming-list {

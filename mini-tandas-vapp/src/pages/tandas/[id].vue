@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { canSell as tandaCanSell } from '@shared/domain/tanda'
 import { useTandasStore } from '@shared/stores/tandas'
 import type { SaleWithDetails } from '@shared/db/types'
+import TabList, { panelId, tabId } from '@shared/ui/TabList.vue'
+import { usePageTitle } from '@shared/ui/usePageTitle'
 import TandaHeader from '@/features/tandas/components/TandaHeader.vue'
 import StatusFlow from '@/features/tandas/components/StatusFlow.vue'
 import InventoryEditor from '@/features/tandas/components/InventoryEditor.vue'
@@ -12,9 +14,12 @@ import SaleDialog from '@/features/tandas/components/SaleDialog.vue'
 import SaleList from '@/features/tandas/components/SaleList.vue'
 
 const route = useRoute('/tandas/[id]')
+const router = useRouter()
 const tandasStore = useTandasStore()
 
 const tanda = computed(() => tandasStore.tandas.find((t) => t.id === route.params.id) ?? null)
+
+usePageTitle(() => tanda.value?.name)
 
 /**
  * Scheduled tandas take pre-orders while open; anticipated tandas sell
@@ -23,7 +28,26 @@ const tanda = computed(() => tandasStore.tandas.find((t) => t.id === route.param
 const canSell = computed(() => (tanda.value ? tandaCanSell(tanda.value) : false))
 
 type Tab = 'sales' | 'inventory'
-const tab = ref<Tab>('sales')
+
+/** Only anticipated tandas have an inventory, so only they get tabs. */
+const hasTabs = computed(() => tanda.value?.type === 'anticipated')
+
+const TABS = [
+  { value: 'sales', label: 'Sales' },
+  { value: 'inventory', label: 'Inventory' },
+] as const
+
+/** The active tab lives in `?tab=` so reload and back keep the view. */
+const tab = computed<Tab>({
+  get: () => (hasTabs.value && route.query.tab === 'inventory' ? 'inventory' : 'sales'),
+  set: (value) => {
+    void router.replace({ query: { ...route.query, tab: value === 'sales' ? undefined : value } })
+  },
+})
+
+function onTabChange(value: string) {
+  tab.value = value === 'inventory' ? 'inventory' : 'sales'
+}
 
 /** Sale dialog state; initialSkuId pre-selects a SKU when sold from inventory. */
 const dialogInitialSku = ref<string | undefined>(undefined)
@@ -60,40 +84,37 @@ function closeSaleDialog() {
     <TandaHeader :tanda="tanda" />
     <StatusFlow :tanda="tanda" />
 
-    <div class="tabs" role="tablist">
-      <button
-        type="button"
-        role="tab"
-        class="tab"
-        :class="{ 'is-active': tab === 'sales' }"
-        :aria-selected="tab === 'sales'"
-        @click="tab = 'sales'"
-      >
-        Sales
-      </button>
-      <button
-        v-if="tanda.type === 'anticipated'"
-        type="button"
-        role="tab"
-        class="tab"
-        :class="{ 'is-active': tab === 'inventory' }"
-        :aria-selected="tab === 'inventory'"
-        @click="tab = 'inventory'"
-      >
-        Inventory
-      </button>
-    </div>
+    <TabList
+      v-if="hasTabs"
+      :tabs="TABS"
+      :model-value="tab"
+      id-base="tanda"
+      label="Tanda views"
+      @update:model-value="onTabChange"
+    />
 
-    <template v-if="tab === 'sales'">
+    <div
+      v-if="tab === 'sales'"
+      :id="hasTabs ? panelId('tanda', 'sales') : undefined"
+      :role="hasTabs ? 'tabpanel' : undefined"
+      :aria-labelledby="hasTabs ? tabId('tanda', 'sales') : undefined"
+    >
       <div class="sales-toolbar">
         <button v-if="canSell" type="button" class="btn btn-primary" @click="openSaleDialog()">
           New sale
         </button>
       </div>
-      <SaleList :tanda="tanda" @edit="openSaleEdit" />
-    </template>
+      <SaleList :tanda="tanda" :hide-heading="hasTabs" @edit="openSaleEdit" />
+    </div>
 
-    <InventoryEditor v-else :tanda="tanda" :sellable="canSell" @sell="openSaleDialog" />
+    <div
+      v-else
+      :id="panelId('tanda', 'inventory')"
+      role="tabpanel"
+      :aria-labelledby="tabId('tanda', 'inventory')"
+    >
+      <InventoryEditor :tanda="tanda" :sellable="canSell" @sell="openSaleDialog" />
+    </div>
 
     <button
       v-if="canSell"
@@ -117,34 +138,6 @@ function closeSaleDialog() {
 </template>
 
 <style scoped>
-.tabs {
-  display: flex;
-  gap: var(--space-1);
-  border-bottom: 1px solid var(--color-border);
-  margin-bottom: var(--space-4);
-}
-
-.tab {
-  border: none;
-  background: transparent;
-  padding: var(--space-2) var(--space-3);
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--color-ink-soft);
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-}
-
-.tab:hover {
-  color: var(--color-primary);
-}
-
-.tab.is-active {
-  color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
-}
-
 .sales-toolbar {
   display: flex;
   justify-content: flex-end;
