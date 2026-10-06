@@ -226,7 +226,9 @@ function buildSaleDetails(sale: {
   const items: SaleLine[] = itemRows.flatMap((row): SaleLine[] => {
     const sku = getSku(row.sku_id)
     const product = sku ? getProduct(sku.productId) : null
-    const label = sku && product ? `${product.name} (${skuLabel(product, sku)})` : 'Removed SKU'
+    const variant = sku && product ? skuLabel(product, sku) : ''
+    // A product without variations has one default SKU with no variant label.
+    const label = sku && product ? (variant ? `${product.name} (${variant})` : product.name) : 'Removed SKU'
     return [
       {
         skuId: row.sku_id,

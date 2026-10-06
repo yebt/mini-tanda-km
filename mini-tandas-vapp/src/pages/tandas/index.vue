@@ -3,7 +3,8 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { formatDate, formatMoney, todayISO } from '@shared/db/format'
-import type { TandaStatus, TandaType } from '@shared/db/types'
+import type { TandaType } from '@shared/db/types'
+import { statusBadge, statusLabel, typeBadge, typeLabel } from '@shared/ui/badges'
 import { useTandasStore } from '@shared/stores/tandas'
 
 const route = useRoute()
@@ -18,18 +19,6 @@ const type = ref<TandaType>('scheduled')
 const TYPE_HELPER: Record<TandaType, string> = {
   scheduled: 'Take pre-orders now, produce later',
   anticipated: 'Register what you produced, then sell from that stock',
-}
-
-const TYPE_BADGE: Record<TandaType, string> = {
-  scheduled: 'badge-info',
-  anticipated: 'badge-neutral',
-}
-
-const STATUS_BADGE: Record<TandaStatus, string> = {
-  open: 'badge-info',
-  production: 'badge-neutral',
-  ready: 'badge-success',
-  closed: 'badge-neutral',
 }
 
 const typeHelper = computed(() => TYPE_HELPER[type.value])
@@ -101,7 +90,8 @@ function submit() {
 
   <div v-if="tandasStore.tandas.length === 0" class="card empty-state">No tandas yet.</div>
 
-  <table v-else class="desktop-only table">
+  <div v-else class="card table-card desktop-only">
+    <table class="table">
     <thead>
       <tr>
         <th>Name</th>
@@ -120,10 +110,12 @@ function submit() {
         </td>
         <td>{{ formatDate(tanda.date) }}</td>
         <td>
-          <span class="badge" :class="TYPE_BADGE[tanda.type]">{{ tanda.type }}</span>
+          <span class="badge" :class="typeBadge(tanda.type)">{{ typeLabel(tanda.type) }}</span>
         </td>
         <td>
-          <span class="badge" :class="STATUS_BADGE[tanda.status]">{{ tanda.status }}</span>
+          <span class="badge" :class="statusBadge(tanda.status)">{{
+            statusLabel(tanda.status)
+          }}</span>
         </td>
         <td class="col-num">{{ tanda.saleCount }}</td>
         <td class="col-num money">{{ formatMoney(tanda.revenue) }}</td>
@@ -132,7 +124,8 @@ function submit() {
         </td>
       </tr>
     </tbody>
-  </table>
+    </table>
+  </div>
 
   <div v-if="tandasStore.tandas.length > 0" class="mobile-only">
     <RouterLink
@@ -143,11 +136,13 @@ function submit() {
     >
       <div class="row-between">
         <span class="tanda-name">{{ tanda.name }}</span>
-        <span class="badge" :class="STATUS_BADGE[tanda.status]">{{ tanda.status }}</span>
+        <span class="badge" :class="statusBadge(tanda.status)">{{
+            statusLabel(tanda.status)
+          }}</span>
       </div>
       <div class="row tanda-meta">
         <span class="muted">{{ formatDate(tanda.date) }}</span>
-        <span class="badge" :class="TYPE_BADGE[tanda.type]">{{ tanda.type }}</span>
+        <span class="badge" :class="typeBadge(tanda.type)">{{ typeLabel(tanda.type) }}</span>
       </div>
       <div class="row tanda-figures">
         <span>{{ tanda.saleCount }} sales</span>
@@ -163,10 +158,6 @@ function submit() {
 <style scoped>
 .page-head {
   margin-bottom: var(--space-4);
-}
-
-.col-num {
-  text-align: right;
 }
 
 .tanda-card {

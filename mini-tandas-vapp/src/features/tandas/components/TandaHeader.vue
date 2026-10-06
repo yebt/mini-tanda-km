@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
-import type { Tanda, TandaType } from '@shared/db/types'
+import type { Tanda } from '@shared/db/types'
 import { formatDate } from '@shared/db/format'
 import { useTandasStore } from '@shared/stores/tandas'
+import { typeBadge, typeLabel } from '@shared/ui/badges'
 import { notify } from '@shared/ui/useToast'
 
 const props = defineProps<{ tanda: Tanda }>()
@@ -28,11 +29,6 @@ watch(
 
 const editable = computed(() => props.tanda.status === 'open')
 
-const TYPE_BADGE: Record<TandaType, string> = {
-  scheduled: 'badge-info',
-  anticipated: 'badge-neutral',
-}
-const typeBadgeClass = computed(() => TYPE_BADGE[props.tanda.type])
 
 function saveName() {
   const trimmed = name.value.trim()
@@ -82,7 +78,7 @@ function saveDate() {
           <h1>{{ tanda.name }}</h1>
           <span class="muted">{{ formatDate(tanda.date) }}</span>
         </div>
-        <span class="badge" :class="typeBadgeClass">{{ tanda.type }}</span>
+        <span class="badge" :class="typeBadge(tanda.type)">{{ typeLabel(tanda.type) }}</span>
       </div>
     </div>
   </section>

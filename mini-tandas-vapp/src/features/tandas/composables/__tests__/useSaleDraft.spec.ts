@@ -57,20 +57,20 @@ describe('useInventoryAvailability', () => {
 })
 
 describe('useSaleDraft — product options', () => {
-  it('scheduled tandas only disable unpriced SKUs', () => {
+  it('scheduled tandas only disable unpriced SKUs and show no stock count', () => {
     const { skuOptions } = draft('scheduled')
     expect(skuOptions.value).toEqual([
       {
         value: personal.id,
         label: 'Cake (Personal)',
-        hint: `${formatMoney(90)} · 0 available`,
+        hint: formatMoney(90),
         disabled: false,
         disabledReason: 'Out of stock',
       },
       {
         value: family.id,
         label: 'Cake (Family)',
-        hint: `${formatMoney(120)} · 0 available`,
+        hint: formatMoney(120),
         disabled: false,
         disabledReason: 'Out of stock',
       },

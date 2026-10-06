@@ -2,31 +2,47 @@ import { currency } from './settings'
 
 export { SUPPORTED_CURRENCIES } from './settings'
 
-export function formatMoney(amount: number): string {
+const FALLBACK_LOCALE = 'en-US'
+
+/**
+ * The person's locale (WIG-21), so e.g. MXN reads "$1,234.50" for es-MX
+ * instead of "MX$". Falls back to en-US when missing or invalid.
+ */
+export function appLocale(): string {
+  const candidate =
+    typeof navigator === 'undefined' ? undefined : (navigator.languages?.[0] ?? navigator.language)
+  if (!candidate) return FALLBACK_LOCALE
   try {
-    return new Intl.NumberFormat('en-US', {
+    return Intl.getCanonicalLocales(candidate)[0] ?? FALLBACK_LOCALE
+  } catch {
+    return FALLBACK_LOCALE
+  }
+}
+
+export function formatMoney(amount: number): string {
+  const locale = appLocale()
+  try {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency.value,
     }).format(amount)
   } catch {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'MXN' }).format(amount)
+    return new Intl.NumberFormat(locale, { style: 'currency', currency: 'MXN' }).format(amount)
   }
 }
-
-const dateFormatter = new Intl.DateTimeFormat('en-US', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-})
 
 /** Accepts both a calendar date (`YYYY-MM-DD`) and a full ISO datetime. */
 export function formatDate(isoDate: string): string {
   const parseable = isoDate.includes('T') ? isoDate : `${isoDate}T00:00:00`
-  return dateFormatter.format(new Date(parseable))
+  return new Intl.DateTimeFormat(appLocale(), {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(parseable))
 }
 
 export function formatDateTime(iso: string): string {
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat(appLocale(), {
     day: 'numeric',
     month: 'short',
     year: 'numeric',

@@ -77,7 +77,6 @@ function togglePricingVariation(variation: Variation, event: Event) {
   gap: var(--space-2);
   padding: var(--space-1) 0;
   cursor: pointer;
-  text-transform: capitalize;
 }
 
 .pricing-section > p:last-child {

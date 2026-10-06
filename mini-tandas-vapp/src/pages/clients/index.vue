@@ -34,8 +34,23 @@ function submit(): void {
   notify(`Client "${value}" added.`)
 }
 
+const highlighted = ref(false)
+let highlightTimer: ReturnType<typeof setTimeout> | undefined
+
 function focusNameInput(): void {
   nameInput.value?.focus()
+}
+
+/** FAB: bring the create field into view, focus it and flash it so it is found. */
+function startNewClient(): void {
+  const input = nameInput.value
+  if (!input) return
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  input.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' })
+  input.focus({ preventScroll: true })
+  highlighted.value = true
+  clearTimeout(highlightTimer)
+  highlightTimer = setTimeout(() => (highlighted.value = false), 1600)
 }
 
 async function remove(client: ClientSummary): Promise<void> {
@@ -56,7 +71,7 @@ async function remove(client: ClientSummary): Promise<void> {
   <section class="card">
     <h1>Clients</h1>
     <form class="row-wrap new-client-form" @submit.prevent="submit">
-      <div class="field new-client-field">
+      <div class="field new-client-field" :class="{ 'is-highlighted': highlighted }">
         <label class="label" for="client-name">New client</label>
         <input
           id="client-name"
@@ -76,7 +91,7 @@ async function remove(client: ClientSummary): Promise<void> {
     <p v-if="error" id="client-name-error" class="error-text" role="alert">{{ error }}</p>
   </section>
 
-  <button class="fab mobile-only" aria-label="Add client" @click="focusNameInput">+</button>
+  <button class="fab mobile-only" aria-label="New client" @click="startNewClient">+</button>
 
   <section class="card">
     <p v-if="sortedClients.length === 0" class="empty-state">No clients yet.</p>
@@ -85,9 +100,9 @@ async function remove(client: ClientSummary): Promise<void> {
         <tr>
           <th>Name</th>
           <th>Created</th>
-          <th>Total sales</th>
-          <th>Total payments</th>
-          <th>Balance</th>
+          <th class="col-num">Total sales</th>
+          <th class="col-num">Total payments</th>
+          <th class="col-num">Balance</th>
           <th class="actions-col" aria-label="Actions" />
         </tr>
       </thead>
@@ -97,9 +112,9 @@ async function remove(client: ClientSummary): Promise<void> {
             <RouterLink :to="`/clients/${client.id}`">{{ client.name }}</RouterLink>
           </td>
           <td class="muted">{{ formatDate(client.createdAt) }}</td>
-          <td class="money">{{ formatMoney(client.totalSales) }}</td>
-          <td class="money">{{ formatMoney(client.totalPayments) }}</td>
-          <td class="money" :class="{ 'money-negative': client.balance > 0 }">
+          <td class="col-num money">{{ formatMoney(client.totalSales) }}</td>
+          <td class="col-num money">{{ formatMoney(client.totalPayments) }}</td>
+          <td class="col-num money" :class="{ 'money-negative': client.balance > 0 }">
             {{ formatMoney(client.balance) }}
           </td>
           <td class="actions-col">
@@ -138,6 +153,21 @@ async function remove(client: ClientSummary): Promise<void> {
 .new-client-field {
   flex: 1 1 260px;
   margin-bottom: 0;
+}
+
+.new-client-field .input {
+  transition: box-shadow 200ms ease;
+}
+
+.new-client-field.is-highlighted .input {
+  box-shadow: 0 0 0 4px var(--color-primary-soft);
+  border-color: var(--color-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .new-client-field .input {
+    transition: none;
+  }
 }
 
 .new-client-button {

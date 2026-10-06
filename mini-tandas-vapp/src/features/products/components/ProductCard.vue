@@ -24,10 +24,6 @@ const modeLabel = computed(() =>
   props.product.priceMode === 'global' ? 'Global price' : 'Price per SKU',
 )
 
-const modeClass = computed(() =>
-  props.product.priceMode === 'global' ? 'badge-info' : 'badge-neutral',
-)
-
 const pricing = computed(() => summarizePricing(props.product, props.priceRows))
 
 const isGlobalMode = computed(() => props.product.priceMode === 'global')
@@ -62,7 +58,8 @@ const variationBadges = computed(() =>
 <template>
   <article class="card product-card">
     <div class="product-photo">
-      <img v-if="product.photo" :src="product.photo" :alt="product.name" />
+      <!-- Decorative: the name is shown right next to it. -->
+      <img v-if="product.photo" :src="product.photo" alt="" />
       <span v-else>{{ initial }}</span>
     </div>
     <div class="product-body">
@@ -76,7 +73,7 @@ const variationBadges = computed(() =>
           <span class="money price-amount">{{ priceAmount }}</span>
         </p>
         <div class="card-meta">
-          <span class="badge" :class="modeClass">{{ modeLabel }}</span>
+          <span class="badge badge-neutral">{{ modeLabel }}</span>
           <span v-if="priceDetail" class="muted">{{ priceDetail }}</span>
         </div>
       </div>

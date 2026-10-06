@@ -32,7 +32,7 @@ test('full journey: product priced by one variation → client → scheduled tan
 
   // ── Client ─────────────────────────────────────────────────────────────
   await page.getByRole('link', { name: 'Clients', exact: true }).click()
-  await page.getByLabel('New client').fill('María')
+  await page.getByRole('textbox', { name: 'New client' }).fill('María')
   await page.getByRole('button', { name: 'Add client' }).click()
   // The outcome is confirmed in a polite status region.
   await expect(page.getByRole('status')).toContainText('Client "María" added.')
@@ -94,7 +94,7 @@ test('anticipated tanda: stock in open, sales open once ready', async ({ page })
 
   // ── Client ─────────────────────────────────────────────────────────────
   await page.getByRole('link', { name: 'Clients', exact: true }).click()
-  await page.getByLabel('New client').fill('Ana')
+  await page.getByRole('textbox', { name: 'New client' }).fill('Ana')
   await page.getByRole('button', { name: 'Add client' }).click()
 
   // ── Anticipated tanda: no sales while open/production ──────────────────
@@ -149,7 +149,7 @@ test('product without variations: one global price, stocked and sold', async ({ 
   await page.locator('button[type="submit"].btn-primary').click()
 
   await page.getByRole('link', { name: 'Clients', exact: true }).click()
-  await page.getByLabel('New client').fill('Ana')
+  await page.getByRole('textbox', { name: 'New client' }).fill('Ana')
   await page.getByRole('button', { name: 'Add client' }).click()
 
   await page.getByRole('link', { name: 'Tandas', exact: true }).click()
@@ -217,7 +217,10 @@ test('mobile shell: bottom nav, back button and floating create button', async (
   }
 
   await bottomNav.getByRole('link', { name: /Clients/i }).click()
-  await page.getByLabel('New client').fill('Luna')
+  // The Clients FAB brings the create field into view and focuses it.
+  await page.getByRole('button', { name: 'New client' }).click()
+  await expect(page.getByRole('textbox', { name: 'New client' })).toBeFocused()
+  await page.getByRole('textbox', { name: 'New client' }).fill('Luna')
   await page.locator('form').getByRole('button', { name: 'Add client' }).click()
   await expect(page.locator('.client-item')).toBeVisible()
   await assertNoOverflow()

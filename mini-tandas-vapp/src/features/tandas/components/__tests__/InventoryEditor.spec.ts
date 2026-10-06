@@ -81,8 +81,19 @@ describe('InventoryEditor', () => {
     const wrapper = mountEditor(tandaId, true)
 
     expect(rowOf(wrapper, 'Small').find('button').text()).toBe('Sell')
-    const large = rowOf(wrapper, 'Large')
-    expect(large.find('button').exists()).toBe(false)
-    expect(large.text()).toContain('No price set')
+    // Never produced: not part of this batch, so the locked view leaves it out.
+    expect(rowOf(wrapper, 'Large')).toBeUndefined()
+  })
+
+  it('locked view: red only for sold-out SKUs, no unproduced SKUs or empty groups', () => {
+    const { priced, tandaId } = seed()
+    createProduct({ name: 'Brownie', description: null, photo: null, priceMode: 'global', price: 30 })
+    expect(setInventoryQuantity(tandaId, priced.id, 2)).toEqual({ ok: true })
+    setTandaStatus(tandaId, 'production')
+    const wrapper = mountEditor(tandaId, false)
+
+    expect(wrapper.findAll('.group-row').map((row) => row.text())).toEqual(['Flan'])
+    expect(wrapper.text()).not.toContain('Brownie')
+    expect(wrapper.findAll('.stock-out')).toHaveLength(0)
   })
 })

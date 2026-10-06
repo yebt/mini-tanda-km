@@ -22,11 +22,27 @@ const tandasStore = useTandasStore()
 const productsStore = useProductsStore()
 
 const editable = computed(() => canEditInventory(props.tanda))
-const catalog = computed(() => productsStore.catalog)
 
 const { producedOf, soldOf, availableOf } = useInventoryAvailability(() =>
   tandasStore.inventoryFor(props.tanda.id),
 )
+
+/**
+ * While open every SKU can be stocked. Once locked, only what this batch
+ * actually produced is shown: no never-produced SKUs, no empty groups.
+ */
+const catalog = computed(() =>
+  editable.value
+    ? productsStore.catalog
+    : productsStore.catalog
+        .map((group) => ({ ...group, skus: group.skus.filter((sku) => producedOf(sku.id) > 0) }))
+        .filter((group) => group.skus.length > 0),
+)
+
+/** Red is kept for SKUs that were produced and are now sold out. */
+function isSoldOut(skuId: string): boolean {
+  return producedOf(skuId) > 0 && availableOf(skuId) === 0
+}
 
 function canSellSku(sku: SkuWithProduct): boolean {
   return props.sellable && isSkuSellable(sku) && availableOf(sku.id) > 0
@@ -59,7 +75,9 @@ function sell(skuId: string) {
     <h2 class="visually-hidden">Inventory</h2>
     <p v-if="!editable" class="muted locked-note">Locked — tanda is no longer open</p>
 
-    <p v-if="catalog.length === 0" class="empty-state">No products in the catalog yet.</p>
+    <p v-if="catalog.length === 0" class="empty-state">
+      {{ editable ? 'No products in the catalog yet.' : 'Nothing was produced for this tanda.' }}
+    </p>
 
     <template v-else>
       <table class="desktop-only table">
@@ -99,7 +117,7 @@ function sell(skuId: string) {
             <template v-else>
               <td class="col-num">{{ producedOf(sku.id) }}</td>
               <td class="col-num">{{ soldOf(sku.id) }}</td>
-              <td class="col-num" :class="{ 'stock-out': availableOf(sku.id) === 0 }">
+              <td class="col-num" :class="{ 'stock-out': isSoldOut(sku.id) }">
                 {{ availableOf(sku.id) }}
               </td>
               <td v-if="sellable" class="col-action">
@@ -132,7 +150,7 @@ function sell(skuId: string) {
                 <RouterLink to="/products">set it in Products</RouterLink>
               </span>
               <span v-else-if="editable" class="muted">produced</span>
-              <span v-else class="muted" :class="{ 'stock-out': availableOf(sku.id) === 0 }">
+              <span v-else class="muted" :class="{ 'stock-out': isSoldOut(sku.id) }">
                 {{ availableOf(sku.id) }} available
               </span>
             </div>
@@ -164,10 +182,6 @@ function sell(skuId: string) {
 <style scoped>
 .locked-note {
   margin: 0 0 var(--space-2);
-}
-
-.col-num {
-  text-align: right;
 }
 
 .col-action {

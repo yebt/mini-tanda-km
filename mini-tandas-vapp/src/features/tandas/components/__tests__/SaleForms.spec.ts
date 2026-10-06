@@ -58,5 +58,7 @@ describe('SaleList', () => {
     expect(toggle.attributes('disabled')).toBeDefined()
     const hint = wrapper.get(`#${toggle.attributes('aria-describedby')}`)
     expect(hint.text()).toBe('Available once the tanda is ready')
+    // A product without variations is labelled by its name alone, not "Cookies box ()".
+    expect(wrapper.get('.sale-item-label').text()).toBe('1 × Cookies box')
   })
 })

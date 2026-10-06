@@ -20,7 +20,6 @@ interface Row {
   product: Product
   initial: string
   priceModeLabel: string
-  priceModeClass: string
   priceHeading: string
   priceDetail: string
   variationSummary: string
@@ -33,7 +32,6 @@ const rows = computed<Row[]>(() =>
       product,
       initial: product.name.charAt(0).toUpperCase(),
       priceModeLabel: product.priceMode === 'global' ? 'Global price' : 'Price per SKU',
-      priceModeClass: product.priceMode === 'global' ? 'badge-info' : 'badge-neutral',
       priceHeading: pricing.heading,
       priceDetail: pricing.detail,
       variationSummary: summarizeVariations(product),
@@ -58,7 +56,7 @@ const rows = computed<Row[]>(() =>
           <td>
             <div class="cell-product">
               <div class="product-photo" :class="{ 'has-photo': row.product.photo }">
-                <img v-if="row.product.photo" :src="row.product.photo" :alt="row.product.name" />
+                <img v-if="row.product.photo" :src="row.product.photo"  alt="" />
                 <span v-else>{{ row.initial }}</span>
               </div>
               <div class="cell-text">
@@ -70,7 +68,7 @@ const rows = computed<Row[]>(() =>
             </div>
           </td>
           <td>
-            <span class="badge" :class="row.priceModeClass">{{ row.priceModeLabel }}</span>
+            <span class="badge badge-neutral">{{ row.priceModeLabel }}</span>
             <p class="money cell-price">{{ row.priceHeading }}</p>
             <p v-if="row.priceDetail" class="muted cell-detail">{{ row.priceDetail }}</p>
           </td>
@@ -99,10 +97,6 @@ const rows = computed<Row[]>(() =>
 </template>
 
 <style scoped>
-.table-card {
-  padding: var(--space-3) var(--space-4);
-}
-
 .actions-col {
   width: 48px;
   text-align: right;

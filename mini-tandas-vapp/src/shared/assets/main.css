@@ -13,6 +13,9 @@
   --color-warning-soft: #f8ecd2;
   --color-danger: #b3372f;
   --color-danger-soft: #f7dedb;
+  /* Gray for plain facts (type, closed, general payment): not a warning. */
+  --color-neutral-soft: #efe9e1;
+  --color-neutral-ink: #5c4f42;
   --color-on-primary: #ffffff;
   --color-on-danger: #ffffff;
   --color-danger-hover: #962c25;
@@ -56,6 +59,8 @@ html[data-theme='dark'] {
   --color-warning-soft: #332a12;
   --color-danger: #e47973;
   --color-danger-soft: #3a211d;
+  --color-neutral-soft: #3a3129;
+  --color-neutral-ink: #cbbcaa;
   --color-on-primary: #2b2118;
   --color-on-danger: #2b2118;
   --color-danger-hover: #ec8f8a;
@@ -227,10 +232,15 @@ a {
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 700;
-  text-transform: capitalize;
 }
 
 .badge-neutral {
+  background: var(--color-neutral-soft);
+  color: var(--color-neutral-ink);
+}
+
+/* Amber: states that need attention (e.g. production underway). */
+.badge-warning {
   background: var(--color-warning-soft);
   color: var(--color-warning-ink);
 }
@@ -293,6 +303,20 @@ a {
   text-align: left;
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--color-border);
+}
+
+.table .col-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Shared wrapper so every list table sits on the same card. */
+.table-card {
+  padding: var(--space-3) var(--space-4);
+}
+
+.table-card .table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .table th {

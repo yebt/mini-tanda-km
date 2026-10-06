@@ -137,10 +137,6 @@ async function removeOption(variation: Variation, option: VariationOption) {
   box-shadow: none;
 }
 
-.variation-name {
-  text-transform: capitalize;
-}
-
 .option-chips {
   margin: var(--space-3) 0;
 }

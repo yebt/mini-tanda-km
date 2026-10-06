@@ -40,6 +40,17 @@ if (initialSaleId) {
   onMounted(() => amountInput.value?.focus())
 }
 
+// "Record payment" on a sale of this page updates ?pay=: pre-select it here.
+watch(
+  () => route.query.pay,
+  (saleId) => {
+    if (typeof saleId !== 'string' || !saleId) return
+    targetSaleId.value = saleId
+    amountInput.value?.scrollIntoView({ block: 'center' })
+    amountInput.value?.focus({ preventScroll: true })
+  },
+)
+
 function saleLabel(sale: SaleWithDetails): string {
   const tanda = tandasStore.tandas.find((t) => t.id === sale.tandaId)
   const prefix = tanda ? tanda.name : 'Sale'

@@ -36,6 +36,7 @@ describe.each(Object.entries(themes))('%s theme tokens', (_theme, t) => {
     ['warning-ink', 'warning-soft'],
     ['success-ink', 'success-soft'],
     ['danger', 'danger-soft'],
+    ['neutral-ink', 'neutral-soft'],
     ['on-danger', 'danger'],
     ['on-danger', 'danger-hover'],
   ])('text %s on %s is >= 4.5:1', (ink, background) => {

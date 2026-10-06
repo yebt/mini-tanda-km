@@ -5,6 +5,7 @@ import { useClientsStore } from '@shared/stores/clients'
 import { useProductsStore } from '@shared/stores/products'
 import { useTandasStore } from '@shared/stores/tandas'
 import { formatDate, formatMoney } from '@shared/db/format'
+import { statusBadge, statusLabel, typeBadge, typeLabel } from '@shared/ui/badges'
 
 const clientsStore = useClientsStore()
 const productsStore = useProductsStore()
@@ -37,9 +38,9 @@ const nextActions = computed(() => tandasStore.activeTandas.slice(0, 5))
         </div>
         <div class="row upcoming-meta">
           <span class="muted">{{ formatDate(tanda.date) }}</span>
-          <span class="badge badge-info">{{ tanda.type }}</span>
-          <span class="badge" :class="tanda.status === 'open' ? 'badge-neutral' : 'badge-success'">
-            {{ tanda.status }}
+          <span class="badge" :class="typeBadge(tanda.type)">{{ typeLabel(tanda.type) }}</span>
+          <span class="badge" :class="statusBadge(tanda.status)">
+            {{ statusLabel(tanda.status) }}
           </span>
         </div>
       </li>

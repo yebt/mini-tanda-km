@@ -94,11 +94,15 @@ export function useSaleDraft(options: {
         return {
           value: sku.id,
           label: sku.label ? `${group.product.name} (${sku.label})` : group.product.name,
+          // Stock counts only mean something for stock-limited (anticipated) tandas;
+          // pre-orders would otherwise read "0 available" as sold out.
           hint: unpriced
             ? 'no price'
             : unavailable
               ? `no stock · ${formatMoney(price)}`
-              : `${formatMoney(price)} · ${availableOf(sku.id)} available`,
+              : limitedByStock.value
+                ? `${formatMoney(price)} · ${availableOf(sku.id)} available`
+                : formatMoney(price),
           disabled: unpriced || unavailable,
           disabledReason: unpriced ? UNPRICED_SKU_REASON : 'Out of stock',
         }

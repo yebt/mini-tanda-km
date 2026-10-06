@@ -23,7 +23,7 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 - [x] T2 Responsive, mobile & touch: UX-09, UX-13, UX-14, UX-15, UX-32, UX-33, UX-38, UX-39, UX-46
 - [x] T3 Feedback, errors & forms: UX-19, UX-20, UX-21, UX-23, UX-31, UX-36, UX-37
 - [x] T4 Dialogs, menus & destructive actions: UX-17, UX-18, UX-24, UX-27, UX-28, UX-43
-- [ ] T5 Content & consistency: UX-22, UX-25, UX-29, UX-34, UX-35, UX-40, UX-41, UX-44, UX-47
+- [x] T5 Content & consistency: UX-22, UX-25, UX-29, UX-34, UX-35, UX-40, UX-41, UX-44, UX-47
 - [ ] T6 Perceived performance: UX-30
 
 ## Progress / evidence
@@ -69,7 +69,7 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 - Checks: unit 21 files / 125 tests passed; type-check 0 errors; lint clean; e2e chromium+firefox 12/12 (added status-region assertion; e2e locators moved from old placeholders to labels).
 
 
-### T4 — Dialogs, menus & destructive actions (commit: next after 7d3f2fc)
+### T4 — Dialogs, menus & destructive actions (commit 6793513)
 - UX-17: `confirmDialog(message, label, { tone: 'danger' })` renders a filled red `.btn-danger-solid` (new `--color-on-danger`/`--color-danger-hover`, contrast-tested ≥ 4.5:1 both themes); Cancel sits left, confirm right (space-between). Used for every delete/remove, discard and import.
 - Decision (UX-17 Import): instead of a typed confirmation, import snapshots the current data first and offers Undo in the toast (restores the snapshot); the confirm says "Replace all data".
 - UX-18: sale delete states the total and, when paid, "Payments of MX$… will stay as general credit for <client>"; payment delete states the balance effect. Stores expose `removalBlocker(id)`; product and client deletes show the reason (role=alert) instead of a confirm that would fail.
@@ -80,5 +80,20 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 - RED observed: confirm tone (2), ActionMenu (2 of 3), SaleDialog draft protection, destructive.spec (3) failed before; sale-delete copy re-verified RED by stashing SaleList.vue.
 - Checks: unit 25 files / 138 tests passed; type-check 0 errors; lint clean; e2e chromium+firefox 12/12 (journey now confirms the production advance).
 
+
+### T5 — Content & consistency (commit: next after 6793513)
+- UX-22: option hints show the stock count only for stock-limited (anticipated) tandas; scheduled shows just the price.
+- UX-25: `shared/ui/badges.ts` centralizes status/type → class + label for dashboard, list, header, status flow and client page. New gray `badge-neutral` (`--color-neutral-soft/ink`, contrast-tested) and amber `badge-warning` (production only). Decision: price-mode badges and "General" payments are gray facts.
+- UX-29: client sales grouped per tanda (heading link with name, date, status, pending total; newest tanda date first) with a per-sale "Record payment" that sets `?pay=` and pre-selects the sale in the payment form on the same page.
+- UX-34: `.badge` no longer capitalizes; enum labels are capitalized in code; `capitalize` also dropped from variation names and the pricing checkbox labels.
+- UX-35: product thumbnails use `alt=""`.
+- UX-40: `appLocale()` (navigator.languages[0] → navigator.language → en-US, validated) for money, dates and date-times. Decision: no new locale setting; the browser locale is the least invasive option.
+- UX-41: tandas table wrapped in the shared `.table-card`; global `.table .col-num` (right-aligned, tabular-nums) used by tandas, inventory and the clients money columns.
+- UX-44: Clients FAB ("New client") scrolls the create field into view, focuses it and highlights it briefly (motion-safe).
+- UX-47: locked inventory hides never-produced SKUs and empty product groups; red only when produced > 0 and available = 0.
+- Extra (found while testing UX-23): sale lines of a product without variations rendered "Cookies box ()" — label now omits empty parens (repo `buildSaleDetails`). Regression from the UX-01 default SKU, fixed here with a test.
+- RED observed: useSaleDraft hint, InventoryEditor (2), badges (missing module), format locale, ClientSalesList, SaleList label all failed before, pass after.
+- Checks: unit 30 files / 147 tests passed; type-check 0 errors; lint clean; e2e chromium+firefox 12/12 (Clients FAB focus assertion added).
+
 ## Next step
-T5.
+T6.

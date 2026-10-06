@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import type { Tanda, TandaStatus } from '@shared/db/types'
 import { nextStatus as nextOf, previousStatus as previousOf } from '@shared/domain/tanda'
 import { useTandasStore } from '@shared/stores/tandas'
+import { statusBadge, statusLabel } from '@shared/ui/badges'
 import { confirmDialog } from '@shared/ui/useConfirm'
 
 const props = defineProps<{ tanda: Tanda }>()
@@ -25,14 +26,6 @@ const STATUS_CAPTIONS: Record<Tanda['type'], Record<TandaStatus, string>> = {
   },
 }
 
-const STATUS_BADGE: Record<TandaStatus, string> = {
-  open: 'badge-info',
-  production: 'badge-neutral',
-  ready: 'badge-success',
-  closed: 'badge-neutral',
-}
-
-const statusBadgeClass = computed(() => STATUS_BADGE[props.tanda.status])
 const caption = computed(() => STATUS_CAPTIONS[props.tanda.type][props.tanda.status])
 
 const nextStatus = computed<TandaStatus | null>(() => nextOf(props.tanda.status))
@@ -68,7 +61,9 @@ async function goBack() {
   <section class="card">
     <div class="row-between status-row">
       <div class="row status-info">
-        <span class="badge" :class="statusBadgeClass">{{ tanda.status }}</span>
+        <span class="badge" :class="statusBadge(tanda.status)">{{
+          statusLabel(tanda.status)
+        }}</span>
         <p class="caption">{{ caption }}</p>
       </div>
       <div class="row status-actions">
