@@ -62,7 +62,11 @@ function onSaved(id: string) {
 
 <template>
   <div class="card product-form">
-    <h2>{{ savedId ? 'Edit product' : 'New product' }}</h2>
+    <div class="row-between form-head">
+      <h2>{{ savedId ? 'Edit product' : 'New product' }}</h2>
+      <!-- Always-visible exit once the product exists (variations apply instantly). -->
+      <button v-if="savedId" type="button" class="btn" @click="emit('cancel')">Done</button>
+    </div>
 
     <TabList
       :tabs="TABS"
@@ -91,5 +95,13 @@ function onSaved(id: string) {
 <style scoped>
 .product-form {
   max-width: 640px;
+}
+
+.form-head {
+  margin-bottom: var(--space-3);
+}
+
+.form-head h2 {
+  margin-bottom: 0;
 }
 </style>

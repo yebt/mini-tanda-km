@@ -53,13 +53,16 @@ export const useProductsStore = defineStore('products', () => {
     return createProduct(input)
   }
 
+  /** Why a product cannot be deleted (checked before asking to confirm), or null. */
+  function removalBlocker(id: string): string | null {
+    return productInUse(id)
+      ? 'This product already has sales or inventory — it cannot be deleted.'
+      : null
+  }
+
   function removeProduct(id: string): { ok: true } | { ok: false; error: string } {
-    if (productInUse(id)) {
-      return {
-        ok: false,
-        error: 'This product already has sales or inventory — it cannot be deleted.',
-      }
-    }
+    const blocker = removalBlocker(id)
+    if (blocker) return { ok: false, error: blocker }
     deleteProduct(id)
     return { ok: true }
   }
@@ -70,6 +73,7 @@ export const useProductsStore = defineStore('products', () => {
     priceRows,
     catalog,
     saveProduct,
+    removalBlocker,
     removeProduct,
     addVariation,
     removeVariation,

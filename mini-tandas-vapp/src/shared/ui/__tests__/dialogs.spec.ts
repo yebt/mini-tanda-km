@@ -155,3 +155,48 @@ describe('SaleDialog', () => {
     expect(wrapper.emitted('close')).toBeUndefined()
   })
 })
+
+/** SaleForm stand-in holding unsaved lines. */
+const DirtySaleFormStub = defineComponent({
+  props: { titleId: { type: String, default: undefined } },
+  setup(_props, { expose }) {
+    expose({ draftSize: () => 2 })
+  },
+  render() {
+    return h('section', [h('h2', { id: this.titleId }, 'New sale'), h('input', { id: 'sale-sku' })])
+  },
+})
+
+describe('SaleDialog draft protection', () => {
+  it('asks before discarding drafted lines and stays open on Cancel', async () => {
+    track(mount(ConfirmDialogHost, { attachTo: document.body }))
+    const wrapper = track(
+      mount(SaleDialog, {
+        props: { tandaId: 't1', type: 'scheduled' },
+        global: { stubs: { SaleForm: DirtySaleFormStub } },
+        attachTo: document.body,
+      }),
+    )
+    await nextTick()
+
+    document.querySelector<HTMLElement>('.dialog-backdrop')!.click()
+    await flushPromises()
+    const message = document.querySelector('[role="alertdialog"] .confirm-message')
+    expect(message?.textContent).toContain('2 items')
+    const cancel = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Cancel',
+    )!
+    cancel.click()
+    await flushPromises()
+    expect(wrapper.emitted('close')).toBeUndefined()
+
+    document.querySelector<HTMLElement>('[aria-label="Close"]')!.click()
+    await flushPromises()
+    const discard = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Discard',
+    )!
+    discard.click()
+    await flushPromises()
+    expect(wrapper.emitted('close')).toHaveLength(1)
+  })
+})

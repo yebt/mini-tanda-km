@@ -22,7 +22,7 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 - [x] T1 Navigation, IA & semantics: UX-10, UX-11, UX-12, UX-16, UX-26, UX-42, UX-45
 - [x] T2 Responsive, mobile & touch: UX-09, UX-13, UX-14, UX-15, UX-32, UX-33, UX-38, UX-39, UX-46
 - [x] T3 Feedback, errors & forms: UX-19, UX-20, UX-21, UX-23, UX-31, UX-36, UX-37
-- [ ] T4 Dialogs, menus & destructive actions: UX-17, UX-18, UX-24, UX-27, UX-28, UX-43
+- [x] T4 Dialogs, menus & destructive actions: UX-17, UX-18, UX-24, UX-27, UX-28, UX-43
 - [ ] T5 Content & consistency: UX-22, UX-25, UX-29, UX-34, UX-35, UX-40, UX-41, UX-44, UX-47
 - [ ] T6 Perceived performance: UX-30
 
@@ -56,7 +56,7 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 - Checks: unit 16 files / 113 tests passed; type-check 0 errors; lint clean; e2e chromium+firefox 12/12 passed.
 
 
-### T3 — Feedback, errors & forms (commit: next after 248d170)
+### T3 — Feedback, errors & forms (commit 7d3f2fc)
 - UX-19: `useToast` + `ToastHost` (always-mounted `role="status" aria-live="polite"`, auto-dismiss 5 s / 8 s with an action). Toasts for client added/deleted, payment recorded/deleted, sale added/updated/deleted, tanda renamed/date set, product created/saved/deleted, price saved/cleared.
 - Decision (UX-19 Undo): Undo is offered for recording and deleting payments only (both reversible through existing repo calls). Sale deletion moves payments to general credit and is not cleanly reversible without a new repo operation, so it relies on the confirm (strengthened in T4).
 - UX-20: field errors get `id` + `aria-describedby` + `aria-invalid` and `role="alert"`; first invalid field is focused (payment amount, client name, product name/price/photo); delete failures (`actionError`/`removeError`) are `role="alert"`.
@@ -68,5 +68,17 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 - RED observed: parseMoney (3), PriceTable (2), toast + PaymentForm (missing modules), SaleForms (2: button disabled, no hint) all failed before the change, pass after.
 - Checks: unit 21 files / 125 tests passed; type-check 0 errors; lint clean; e2e chromium+firefox 12/12 (added status-region assertion; e2e locators moved from old placeholders to labels).
 
+
+### T4 — Dialogs, menus & destructive actions (commit: next after 7d3f2fc)
+- UX-17: `confirmDialog(message, label, { tone: 'danger' })` renders a filled red `.btn-danger-solid` (new `--color-on-danger`/`--color-danger-hover`, contrast-tested ≥ 4.5:1 both themes); Cancel sits left, confirm right (space-between). Used for every delete/remove, discard and import.
+- Decision (UX-17 Import): instead of a typed confirmation, import snapshots the current data first and offers Undo in the toast (restores the snapshot); the confirm says "Replace all data".
+- UX-18: sale delete states the total and, when paid, "Payments of MX$… will stay as general credit for <client>"; payment delete states the balance effect. Stores expose `removalBlocker(id)`; product and client deletes show the reason (role=alert) instead of a confirm that would fail.
+- UX-24: SaleForm exposes `draftSize()`; backdrop, × and Escape ask "Discard this sale? The N items you added will be lost." (danger). Edit mode counts only changed/removed lines. Saving still closes directly.
+- UX-27: ActionMenu follows the menu-button pattern: open focuses the first item (ArrowUp on the trigger: last), Up/Down/Home/End move, Escape closes and returns focus, Tab and focus moving outside close it; items are `tabindex="-1"`.
+- UX-28: persistent "Done" in the product form header once the product exists; Variations tab says "Changes here save automatically." (save model kept — decision: least invasive).
+- UX-43: advancing a scheduled tanda from open asks first ("Pre-orders will close — no new sales can be taken…"); anticipated tandas unchanged.
+- RED observed: confirm tone (2), ActionMenu (2 of 3), SaleDialog draft protection, destructive.spec (3) failed before; sale-delete copy re-verified RED by stashing SaleList.vue.
+- Checks: unit 25 files / 138 tests passed; type-check 0 errors; lint clean; e2e chromium+firefox 12/12 (journey now confirms the production advance).
+
 ## Next step
-T4.
+T5.

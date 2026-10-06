@@ -39,8 +39,9 @@ function focusNameInput(): void {
 }
 
 async function remove(client: ClientSummary): Promise<void> {
-  actionError.value = ''
-  if (await confirmDialog(`Delete "${client.name}"?`, 'Delete')) {
+  actionError.value = clientsStore.removalBlocker(client.id) ?? ''
+  if (actionError.value) return
+  if (await confirmDialog(`Delete "${client.name}"?`, 'Delete client', { tone: 'danger' })) {
     const result = clientsStore.removeClient(client.id)
     if (!result.ok) {
       actionError.value = result.error

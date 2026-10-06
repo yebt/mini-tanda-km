@@ -62,8 +62,10 @@ test('full journey: product priced by one variation → client → scheduled tan
   await expect(page.getByText('270.00').first()).toBeVisible()
   await expect(page.getByText('Pending').first()).toBeVisible()
 
-  // Status moves forward, and can move back with a confirmation.
+  // Status moves forward (closing pre-orders asks first), and can move back with a confirmation.
   await page.getByRole('button', { name: 'Advance to production' }).click()
+  await expect(page.getByRole('alertdialog')).toContainText('Pre-orders will close')
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Advance to production' }).click()
   await expect(page.getByText('production').first()).toBeVisible()
   await page.getByRole('button', { name: /Back to open/ }).click()
   await page.getByRole('button', { name: 'Move back' }).click()

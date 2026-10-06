@@ -35,6 +35,7 @@ async function removeVariation(variation: Variation) {
   const ok = await confirmDialog(
     `Remove variation "${variation.name}"? SKUs that use it will be deleted.`,
     'Remove variation',
+    { tone: 'danger' },
   )
   if (!ok) return
   store.removeVariation(variation.id)
@@ -51,6 +52,7 @@ async function removeOption(variation: Variation, option: VariationOption) {
   const ok = await confirmDialog(
     `Remove option "${option.label}" from ${variation.name}? SKUs that use it will be deleted.`,
     'Remove option',
+    { tone: 'danger' },
   )
   if (!ok) return
   store.removeOption(option.id)

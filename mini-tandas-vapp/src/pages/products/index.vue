@@ -42,7 +42,18 @@ function onCancel() {
 }
 
 async function onRemove(product: Product) {
-  const ok = await confirmDialog(`Delete "${product.name}"? This cannot be undone.`, 'Delete')
+  // Say why up front instead of confirming an action that cannot happen.
+  const blocker = store.removalBlocker(product.id)
+  if (blocker) {
+    removeError.value = blocker
+    return
+  }
+  removeError.value = ''
+  const ok = await confirmDialog(
+    `Delete "${product.name}" with its variations and prices? This cannot be undone.`,
+    'Delete product',
+    { tone: 'danger' },
+  )
   if (!ok) return
   const result = store.removeProduct(product.id)
   removeError.value = result.ok ? '' : result.error

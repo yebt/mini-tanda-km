@@ -43,7 +43,12 @@ function recordPayment(sale: SaleWithDetails) {
 }
 
 async function remove(sale: SaleWithDetails) {
-  if (await confirmDialog(`Delete the sale for ${sale.client.name}?`, 'Delete')) {
+  const credit =
+    sale.paid > 0
+      ? `\nPayments of ${formatMoney(sale.paid)} will stay as general credit for ${sale.client.name}.`
+      : ''
+  const message = `Delete the sale for ${sale.client.name} (${formatMoney(sale.total)})?${credit}`
+  if (await confirmDialog(message, 'Delete sale', { tone: 'danger' })) {
     tandasStore.removeSale(sale.id)
     notify(`Sale for ${sale.client.name} deleted.`)
   }

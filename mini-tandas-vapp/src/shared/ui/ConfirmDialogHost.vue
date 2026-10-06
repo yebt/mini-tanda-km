@@ -46,7 +46,12 @@ watch(
         <p :id="messageId" class="confirm-message">{{ pending.message }}</p>
         <div class="row confirm-actions">
           <button ref="cancelButton" type="button" class="btn" @click="dismiss">Cancel</button>
-          <button type="button" class="btn btn-primary" @click="accept">
+          <button
+            type="button"
+            class="btn"
+            :class="pending.tone === 'danger' ? 'btn-danger-solid' : 'btn-primary'"
+            @click="accept"
+          >
             {{ pending.confirmLabel }}
           </button>
         </div>
@@ -82,7 +87,9 @@ watch(
   white-space: pre-line;
 }
 
+/* Cancel sits on the left, away from the confirm action (Fitts / LAW-02). */
 .confirm-actions {
-  justify-content: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
 }
 </style>

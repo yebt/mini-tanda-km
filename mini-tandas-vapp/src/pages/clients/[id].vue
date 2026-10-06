@@ -24,8 +24,9 @@ const actionError = ref('')
 
 async function remove(): Promise<void> {
   if (!summary.value) return
-  actionError.value = ''
-  if (await confirmDialog(`Delete "${summary.value.name}"?`, 'Delete')) {
+  actionError.value = clientsStore.removalBlocker(summary.value.id) ?? ''
+  if (actionError.value) return
+  if (await confirmDialog(`Delete "${summary.value.name}"?`, 'Delete client', { tone: 'danger' })) {
     const result = clientsStore.removeClient(summary.value.id)
     if (!result.ok) {
       actionError.value = result.error

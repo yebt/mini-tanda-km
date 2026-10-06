@@ -2,6 +2,7 @@
 import { useId, useTemplateRef } from 'vue'
 
 import type { SaleWithDetails, TandaType } from '@shared/db/types'
+import { confirmDialog } from '@shared/ui/useConfirm'
 import { useDialogFocus } from '@shared/ui/useDialogFocus'
 import { useScrollLock } from '@shared/ui/useScrollLock'
 
@@ -22,18 +23,39 @@ const emit = defineEmits<{
   close: []
 }>()
 
-function onClose() {
+const form = useTemplateRef<{ draftSize?: () => number }>('form')
+let asking = false
+
+/** Close after a save: nothing left to protect. */
+function onSubmitted() {
+  emit('close')
+}
+
+/** Backdrop, × or Escape: ask before throwing away drafted lines. */
+async function requestClose() {
+  if (asking) return
+  const size = form.value?.draftSize?.() ?? 0
+  if (size > 0) {
+    asking = true
+    const ok = await confirmDialog(
+      `Discard this sale? ${size === 1 ? 'The item' : `The ${size} items`} you added will be lost.`,
+      'Discard',
+      { tone: 'danger' },
+    )
+    asking = false
+    if (!ok) return
+  }
   emit('close')
 }
 
 const titleId = useId()
 const sheet = useTemplateRef<HTMLElement>('sheet')
-useDialogFocus({ container: sheet, onEscape: onClose })
+useDialogFocus({ container: sheet, onEscape: requestClose })
 </script>
 
 <template>
   <Teleport to="body">
-    <div class="dialog-backdrop" @click="onClose">
+    <div class="dialog-backdrop" @click="requestClose">
       <div
         ref="sheet"
         class="dialog-sheet"
@@ -43,14 +65,17 @@ useDialogFocus({ container: sheet, onEscape: onClose })
         tabindex="-1"
         @click.stop
       >
-        <button type="button" class="dialog-close" aria-label="Close" @click="onClose">×</button>
+        <button type="button" class="dialog-close" aria-label="Close" @click="requestClose">
+          ×
+        </button>
         <SaleForm
+          ref="form"
           :tanda-id="tandaId"
           :type="type"
           :initial-sku-id="initialSkuId"
           :initial-sale="initialSale"
           :title-id="titleId"
-          @submitted="onClose"
+          @submitted="onSubmitted"
         />
       </div>
     </div>

@@ -93,6 +93,21 @@ function onLineQtyInput(line: DraftLine, event: Event) {
   input.value = String(setLineQuantity(line, Number(input.value)))
 }
 
+/**
+ * Lines that closing the form would lose: every line of a new sale, or the
+ * lines that differ from the sale being edited.
+ */
+function draftSize(): number {
+  const original = props.initialSale?.items
+  if (!original) return lines.value.length
+  const changed = lines.value.filter(
+    (line) => original.find((item) => item.skuId === line.skuId)?.quantity !== line.quantity,
+  ).length
+  return changed + original.filter((item) => !lines.value.some((l) => l.skuId === item.skuId)).length
+}
+
+defineExpose({ draftSize })
+
 function resetForm() {
   clientChoice.value = ''
   reset()

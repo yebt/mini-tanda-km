@@ -22,6 +22,7 @@ const priceRows = computed(() =>
 <template>
   <p v-if="!product" class="muted save-first">Save the product first to manage variations.</p>
   <template v-else>
+    <p class="muted autosave-note">Changes here save automatically.</p>
     <VariationEditor :product="product" />
     <template v-if="product.priceMode === 'per_sku'">
       <hr class="divider" />
@@ -34,6 +35,10 @@ const priceRows = computed(() =>
 <style scoped>
 .save-first {
   margin: 0;
+}
+
+.autosave-note {
+  margin: 0 0 var(--space-3);
 }
 
 .divider {

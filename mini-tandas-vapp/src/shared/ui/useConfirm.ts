@@ -1,8 +1,16 @@
 import { shallowRef } from 'vue'
 
+export type ConfirmTone = 'default' | 'danger'
+
+export interface ConfirmOptions {
+  /** `danger` renders the confirm button as destructive (red). */
+  tone?: ConfirmTone
+}
+
 interface ConfirmRequest {
   message: string
   confirmLabel: string
+  tone: ConfirmTone
   resolve: (accepted: boolean) => void
 }
 
@@ -12,9 +20,13 @@ interface ConfirmRequest {
  */
 const pending = shallowRef<ConfirmRequest | null>(null)
 
-export function confirmDialog(message: string, confirmLabel = 'Confirm'): Promise<boolean> {
+export function confirmDialog(
+  message: string,
+  confirmLabel = 'Confirm',
+  options: ConfirmOptions = {},
+): Promise<boolean> {
   return new Promise((resolve) => {
-    pending.value = { message, confirmLabel, resolve }
+    pending.value = { message, confirmLabel, tone: options.tone ?? 'default', resolve }
   })
 }
 

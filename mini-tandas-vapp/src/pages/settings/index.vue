@@ -4,6 +4,7 @@ import { ref } from 'vue'
 import { formatMoney } from '@shared/db/format'
 import { useSettingsStore } from '@shared/stores/settings'
 import { confirmDialog } from '@shared/ui/useConfirm'
+import { notify } from '@shared/ui/useToast'
 import { theme, toggleTheme } from '@shared/ui/useTheme'
 
 const store = useSettingsStore()
@@ -40,14 +41,27 @@ async function onImportFile(event: Event): Promise<void> {
   input.value = ''
   if (!file) return
   const ok = await confirmDialog(
-    'Importing replaces ALL current data (products, clients, tandas, sales, payments). Continue?',
-    'Import',
+    'Importing replaces ALL current data (products, clients, tandas, sales, payments). You can undo it right after.',
+    'Replace all data',
+    { tone: 'danger' },
   )
   if (!ok) return
   try {
     const text = await file.text()
+    // Snapshot first so the replacement can be undone.
+    const previous: unknown = JSON.parse(JSON.stringify(store.exportBackup()))
     const rows = store.importBackup(JSON.parse(text))
-    importMessage.value = `Imported ${rows} rows.`
+    // Success is announced by the toast (with Undo); the inline status keeps errors.
+    importMessage.value = ''
+    notify(`Imported ${rows} rows.`, {
+      action: {
+        label: 'Undo',
+        run: () => {
+          store.importBackup(previous)
+          importMessage.value = 'Import undone — previous data restored.'
+        },
+      },
+    })
   } catch (error) {
     importMessage.value = error instanceof Error ? error.message : 'Import failed.'
   }

@@ -33,13 +33,14 @@ export const useClientsStore = defineStore('clients', () => {
     return createClient(name)
   }
 
+  /** Why a client cannot be deleted (checked before asking to confirm), or null. */
+  function removalBlocker(id: string): string | null {
+    return clientInUse(id) ? 'This client has sales or payments — it cannot be deleted.' : null
+  }
+
   function removeClient(id: string): { ok: true } | { ok: false; error: string } {
-    if (clientInUse(id)) {
-      return {
-        ok: false,
-        error: 'This client has sales or payments — it cannot be deleted.',
-      }
-    }
+    const blocker = removalBlocker(id)
+    if (blocker) return { ok: false, error: blocker }
     deleteClient(id)
     return { ok: true }
   }
@@ -72,6 +73,7 @@ export const useClientsStore = defineStore('clients', () => {
     receivables,
     totalOwed,
     addClient,
+    removalBlocker,
     removeClient,
     summaryFor,
     salesFor,

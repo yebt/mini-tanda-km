@@ -38,10 +38,18 @@ const caption = computed(() => STATUS_CAPTIONS[props.tanda.type][props.tanda.sta
 const nextStatus = computed<TandaStatus | null>(() => nextOf(props.tanda.status))
 const previousStatus = computed<TandaStatus | null>(() => previousOf(props.tanda.status))
 
-function advance() {
-  if (nextStatus.value) {
-    tandasStore.moveStatus(props.tanda.id, nextStatus.value)
+async function advance() {
+  const next = nextStatus.value
+  if (!next) return
+  // Leaving "open" on a scheduled tanda stops pre-orders: say so first.
+  if (props.tanda.type === 'scheduled' && props.tanda.status === 'open') {
+    const ok = await confirmDialog(
+      `Advance "${props.tanda.name}" to production?\nPre-orders will close — no new sales can be taken. You can move it back if needed.`,
+      'Advance to production',
+    )
+    if (!ok) return
   }
+  tandasStore.moveStatus(props.tanda.id, next)
 }
 
 async function goBack() {

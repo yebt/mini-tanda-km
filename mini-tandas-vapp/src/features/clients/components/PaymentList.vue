@@ -16,7 +16,11 @@ const clientsStore = useClientsStore()
 const payments = computed<PaymentWithContext[]>(() => clientsStore.paymentsFor(props.clientId))
 
 async function remove(payment: PaymentWithContext): Promise<void> {
-  if (await confirmDialog(`Delete payment of ${formatMoney(payment.amount)}?`, 'Delete')) {
+  if (await confirmDialog(
+      `Delete the payment of ${formatMoney(payment.amount)}? The client's balance goes up by that amount.`,
+      'Delete payment',
+      { tone: 'danger' },
+    )) {
     clientsStore.removePayment(payment.id)
     notify(`Payment of ${formatMoney(payment.amount)} deleted.`, {
       // Undo records it again with the same client, sale, amount and note.
