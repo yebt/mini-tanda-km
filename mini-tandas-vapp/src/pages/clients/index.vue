@@ -7,8 +7,12 @@ import { useClientsStore } from '@shared/stores/clients'
 import ActionMenu from '@shared/ui/ActionMenu.vue'
 import { confirmDialog } from '@shared/ui/useConfirm'
 import { notify } from '@shared/ui/useToast'
+import { useIsMobile } from '@shared/ui/useMediaQuery'
 
 const clientsStore = useClientsStore()
+
+/** Render one layout only: the hidden one would still cost rendering (and image decoding). */
+const isMobile = useIsMobile()
 
 const name = ref('')
 const nameInput = ref<HTMLInputElement | null>(null)
@@ -95,7 +99,7 @@ async function remove(client: ClientSummary): Promise<void> {
 
   <section class="card">
     <p v-if="sortedClients.length === 0" class="empty-state">No clients yet.</p>
-    <table v-else class="desktop-only table">
+    <table v-else-if="!isMobile" class="desktop-only table">
       <thead>
         <tr>
           <th>Name</th>
@@ -124,7 +128,7 @@ async function remove(client: ClientSummary): Promise<void> {
       </tbody>
     </table>
 
-    <ul v-if="sortedClients.length > 0" class="client-list mobile-only">
+    <ul v-else class="client-list mobile-only">
       <li v-for="client in sortedClients" :key="client.id" class="client-row">
         <RouterLink :to="`/clients/${client.id}`" class="client-item">
           <div class="client-main">

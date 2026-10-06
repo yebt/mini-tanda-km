@@ -59,7 +59,15 @@ const variationBadges = computed(() =>
   <article class="card product-card">
     <div class="product-photo">
       <!-- Decorative: the name is shown right next to it. -->
-      <img v-if="product.thumbnail" :src="product.thumbnail" alt="" />
+      <img
+        v-if="product.thumbnail"
+        :src="product.thumbnail"
+        alt=""
+        width="64"
+        height="64"
+        loading="lazy"
+        decoding="async"
+      />
       <span v-else>{{ initial }}</span>
     </div>
     <div class="product-body">

@@ -146,7 +146,7 @@ async function submit() {
     <div class="field">
       <label class="label" for="product-photo">Photo</label>
       <div v-if="photo" class="row photo-preview">
-        <img :src="photo" alt="Product photo preview" />
+        <img :src="photo" alt="Product photo preview" width="56" height="56" decoding="async" />
         <button type="button" class="btn btn-ghost" @click="removePhoto">Remove photo</button>
       </div>
       <input

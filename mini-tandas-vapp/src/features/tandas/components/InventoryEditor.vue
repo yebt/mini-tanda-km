@@ -5,6 +5,7 @@ import type { SkuWithProduct, Tanda } from '@shared/db/types'
 import { canEditInventory, isSkuSellable, UNPRICED_SKU_REASON } from '@shared/domain/tanda'
 import { useProductsStore } from '@shared/stores/products'
 import { useTandasStore } from '@shared/stores/tandas'
+import { useIsMobile } from '@shared/ui/useMediaQuery'
 
 import { useInventoryAvailability } from '../composables/useSaleDraft'
 
@@ -20,6 +21,9 @@ const emit = defineEmits<{
 
 const tandasStore = useTandasStore()
 const productsStore = useProductsStore()
+
+/** Render one layout only: the hidden one would still cost rendering (and image decoding). */
+const isMobile = useIsMobile()
 
 const editable = computed(() => canEditInventory(props.tanda))
 
@@ -80,7 +84,7 @@ function sell(skuId: string) {
     </p>
 
     <template v-else>
-      <table class="desktop-only table">
+      <table v-if="!isMobile" class="desktop-only table">
         <thead>
           <tr>
             <th>SKU</th>
@@ -139,7 +143,7 @@ function sell(skuId: string) {
         </tbody>
       </table>
 
-      <ul class="inventory-list mobile-only">
+      <ul v-else class="inventory-list mobile-only">
         <li v-for="group in catalog" :key="group.product.id" class="inventory-group">
           <p class="group-name">{{ group.product.name }}</p>
           <div v-for="sku in group.skus" :key="sku.id" class="inventory-row">

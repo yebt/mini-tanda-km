@@ -6,10 +6,14 @@ import { formatDate, formatMoney, todayISO } from '@shared/db/format'
 import type { TandaType } from '@shared/db/types'
 import { statusBadge, statusLabel, typeBadge, typeLabel } from '@shared/ui/badges'
 import { useTandasStore } from '@shared/stores/tandas'
+import { useIsMobile } from '@shared/ui/useMediaQuery'
 
 const route = useRoute()
 const router = useRouter()
 const tandasStore = useTandasStore()
+
+/** Render one layout only: the hidden one would still cost rendering (and image decoding). */
+const isMobile = useIsMobile()
 
 const showForm = ref(false)
 const name = ref('')
@@ -90,7 +94,7 @@ function submit() {
 
   <div v-if="tandasStore.tandas.length === 0" class="card empty-state">No tandas yet.</div>
 
-  <div v-else class="card table-card desktop-only">
+  <div v-else-if="!isMobile" class="card table-card desktop-only">
     <table class="table">
     <thead>
       <tr>
@@ -127,7 +131,7 @@ function submit() {
     </table>
   </div>
 
-  <div v-if="tandasStore.tandas.length > 0" class="mobile-only">
+  <div v-else class="mobile-only">
     <RouterLink
       v-for="tanda in tandasStore.tandas"
       :key="tanda.id"

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 
 import type { PriceRow, Product, SkuWithProduct } from '@shared/db/types'
 import ActionMenu from '@shared/ui/ActionMenu.vue'
+import { useIsMobile } from '@shared/ui/useMediaQuery'
 
 import { summarizePricing, summarizeVariations } from '../lib/productPricing'
 import ProductCard from './ProductCard.vue'
@@ -25,6 +26,9 @@ interface Row {
   variationSummary: string
 }
 
+/** Render one layout only: the hidden one would still cost rendering (and image decoding). */
+const isMobile = useIsMobile()
+
 const rows = computed<Row[]>(() =>
   props.items.map(({ product, priceRows }) => {
     const pricing = summarizePricing(product, priceRows)
@@ -41,7 +45,7 @@ const rows = computed<Row[]>(() =>
 </script>
 
 <template>
-  <div class="card table-card desktop-only">
+  <div v-if="!isMobile" class="card table-card desktop-only">
     <table class="table">
       <thead>
         <tr>
@@ -56,7 +60,15 @@ const rows = computed<Row[]>(() =>
           <td>
             <div class="cell-product">
               <div class="product-photo" :class="{ 'has-photo': row.product.thumbnail }">
-                <img v-if="row.product.thumbnail" :src="row.product.thumbnail" alt="" />
+                <img
+                  v-if="row.product.thumbnail"
+                  :src="row.product.thumbnail"
+                  alt=""
+                  width="40"
+                  height="40"
+                  loading="lazy"
+                  decoding="async"
+                />
                 <span v-else>{{ row.initial }}</span>
               </div>
               <div class="cell-text">
@@ -84,7 +96,7 @@ const rows = computed<Row[]>(() =>
     </table>
   </div>
 
-  <div class="product-list mobile-only">
+  <div v-else class="product-list mobile-only">
     <ProductCard
       v-for="item in items"
       :key="item.product.id"
