@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import { exportPayload, importAllData } from '@shared/db/database'
 import { formatMoney } from '@shared/db/format'
 import { useSettingsStore } from '@shared/stores/settings'
 import { confirmDialog } from '@shared/ui/useConfirm'
@@ -25,7 +24,7 @@ function onThemeChange(event: Event): void {
 }
 
 function exportData(): void {
-  const payload = exportPayload()
+  const payload = store.exportBackup()
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
@@ -47,7 +46,7 @@ async function onImportFile(event: Event): Promise<void> {
   if (!ok) return
   try {
     const text = await file.text()
-    const rows = importAllData(JSON.parse(text))
+    const rows = store.importBackup(JSON.parse(text))
     importMessage.value = `Imported ${rows} rows.`
   } catch (error) {
     importMessage.value = error instanceof Error ? error.message : 'Import failed.'

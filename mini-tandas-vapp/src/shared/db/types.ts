@@ -33,8 +33,6 @@ export interface Sku {
   productId: string
   /** Option ids defining this combination (sorted for a stable key). */
   optionIds: string[]
-  /** @deprecated legacy column; per-SKU prices live in PriceRow. */
-  price: number | null
 }
 
 /** A price keyed by a combination of options from the pricing variations. */
@@ -143,6 +141,7 @@ export interface PaymentWithContext extends Payment {
 export interface SkuWithProduct extends Sku {
   productName: string
   label: string
+  /** Effective price resolved from the product's pricing (null = unpriced). */
   price: number | null
 }
 

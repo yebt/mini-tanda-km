@@ -26,11 +26,11 @@ interface OptionRow {
   label: string
 }
 
+/** `skus.price` is a legacy (pre-v1) column, kept in the schema but no longer read. */
 interface SkuRow {
   id: string
   product_id: string
   option_ids: string
-  price: number | null
 }
 
 function mapProduct(row: ProductRow, variations: Variation[]): Product {
@@ -194,7 +194,6 @@ function mapSku(row: SkuRow): Sku {
     id: row.id,
     productId: row.product_id,
     optionIds: JSON.parse(row.option_ids) as string[],
-    price: fromCentsOrNull(row.price),
   }
 }
 
