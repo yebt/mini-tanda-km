@@ -54,6 +54,15 @@ function makeCake(priceMode: 'global' | 'per_sku' = 'per_sku') {
   return { productId, flavorId, sizeId, coffee, redVelvet, personal, family }
 }
 
+/** Walk a tanda forward through the status flow up to `status`. */
+function advanceTo(tandaId: string, status: 'production' | 'ready' | 'closed') {
+  for (const step of ['production', 'ready', 'closed'] as const) {
+    const result = setTandaStatus(tandaId, step)
+    if (!result.ok) throw new Error(result.error)
+    if (step === status) return
+  }
+}
+
 /** Price the cake by SIZE only: every flavor shares the size price. */
 function priceBySize(productId: string, sizeId: string, prices: Record<string, number>) {
   setPricingVariations(productId, [sizeId])
@@ -214,6 +223,7 @@ describe('scheduled tandas', () => {
     expect(listSales(tandaId)[0]!.paid).toBe(100)
     expect(listSales(tandaId)[0]!.balance).toBe(80)
 
+    advanceTo(tandaId, 'ready')
     setDelivered(saleResult.saleId, true)
     expect(listSales(tandaId)[0]!.delivered).toBe(true)
   })
@@ -270,6 +280,8 @@ describe('anticipated tandas', () => {
     setInventoryQuantity(tandaId, rvPersonal.id, 4)
     setInventoryQuantity(tandaId, rvFamily.id, 4)
     setInventoryQuantity(tandaId, chocoPersonal.id, 2)
+    // Anticipated tandas sell once production is done.
+    advanceTo(tandaId, 'ready')
     return { productId, rvPersonal, rvFamily, chocoPersonal, coffee, family, clientId, tandaId }
   }
 
@@ -386,6 +398,7 @@ describe('editing sales', () => {
     const tandaId = createTanda({ name: 'TA', date: '2026-09-22', type: 'anticipated' })
     const rvPersonal = personalRv
     setInventoryQuantity(tandaId, rvPersonal.id, 4)
+    advanceTo(tandaId, 'ready')
 
     const saleResult = createSale({
       tandaId,
@@ -474,8 +487,96 @@ describe('clients and payments', () => {
 
   it('advances tanda status forward', () => {
     const tandaId = createTanda({ name: 'T', date: '2026-09-10', type: 'scheduled' })
+    advanceTo(tandaId, 'ready')
+    expect(getTanda(tandaId)!.status).toBe('ready')
+  })
+})
+
+describe('tanda status rules enforced by repos', () => {
+  function setup(type: 'scheduled' | 'anticipated') {
+    const { productId, sizeId, redVelvet, personal } = makeCake()
+    priceBySize(productId, sizeId, { [personal]: 100 })
+    const sku = listSkusWithProducts().find(
+      (s) =>
+        s.productId === productId &&
+        s.optionIds.includes(redVelvet) &&
+        s.optionIds.includes(personal),
+    )!
+    const clientId = createClient('Eva')
+    const tandaId = createTanda({ name: 'T', date: '2026-09-30', type })
+    return { sku, clientId, tandaId }
+  }
+
+  it('refuses scheduled sales once the tanda leaves open', () => {
+    const { sku, clientId, tandaId } = setup('scheduled')
+    const sale = createSale({ tandaId, clientId, items: [{ skuId: sku.id, quantity: 1 }] })
+    expect(sale.ok).toBe(true)
+    expect(setTandaStatus(tandaId, 'production')).toEqual({ ok: true })
+
+    expect(createSale({ tandaId, clientId, items: [{ skuId: sku.id, quantity: 1 }] })).toEqual({
+      ok: false,
+      error: 'Sales are closed for this tanda',
+    })
+    if (!sale.ok) throw new Error('expected sale')
+    expect(updateSale(sale.saleId, [{ skuId: sku.id, quantity: 2 }])).toEqual({
+      ok: false,
+      error: 'Sales are closed for this tanda',
+    })
+  })
+
+  it('refuses anticipated sales before the tanda is ready', () => {
+    const { sku, clientId, tandaId } = setup('anticipated')
+    expect(setInventoryQuantity(tandaId, sku.id, 3)).toEqual({ ok: true })
+    expect(createSale({ tandaId, clientId, items: [{ skuId: sku.id, quantity: 1 }] }).ok).toBe(
+      false,
+    )
+    setTandaStatus(tandaId, 'production')
+    expect(createSale({ tandaId, clientId, items: [{ skuId: sku.id, quantity: 1 }] }).ok).toBe(
+      false,
+    )
+    setTandaStatus(tandaId, 'ready')
+    expect(createSale({ tandaId, clientId, items: [{ skuId: sku.id, quantity: 1 }] }).ok).toBe(true)
+  })
+
+  it('refuses inventory edits unless the anticipated tanda is open', () => {
+    const { sku, tandaId } = setup('anticipated')
+    setTandaStatus(tandaId, 'production')
+    expect(setInventoryQuantity(tandaId, sku.id, 3)).toEqual({
+      ok: false,
+      error: 'Inventory can only be edited while the tanda is open',
+    })
+    expect(listInventory(tandaId)).toHaveLength(0)
+
+    const scheduled = setup('scheduled')
+    expect(setInventoryQuantity(scheduled.tandaId, scheduled.sku.id, 3).ok).toBe(false)
+  })
+
+  it('refuses marking delivery before the tanda is ready', () => {
+    const { sku, clientId, tandaId } = setup('scheduled')
+    const sale = createSale({ tandaId, clientId, items: [{ skuId: sku.id, quantity: 1 }] })
+    if (!sale.ok) throw new Error('expected sale')
+
+    expect(setDelivered(sale.saleId, true)).toEqual({
+      ok: false,
+      error: 'Delivery can only be marked once the tanda is ready',
+    })
+    expect(listSales(tandaId)[0]!.delivered).toBe(false)
+
     setTandaStatus(tandaId, 'production')
     setTandaStatus(tandaId, 'ready')
-    expect(getTanda(tandaId)!.status).toBe('ready')
+    expect(setDelivered(sale.saleId, true)).toEqual({ ok: true })
+    expect(listSales(tandaId)[0]!.delivered).toBe(true)
+  })
+
+  it('only moves the status one step forward or back', () => {
+    const { tandaId } = setup('scheduled')
+    expect(setTandaStatus(tandaId, 'ready')).toEqual({
+      ok: false,
+      error: 'Cannot move a tanda from open to ready',
+    })
+    expect(getTanda(tandaId)!.status).toBe('open')
+    expect(setTandaStatus(tandaId, 'production')).toEqual({ ok: true })
+    expect(setTandaStatus(tandaId, 'open')).toEqual({ ok: true })
+    expect(setTandaStatus('missing', 'production')).toEqual({ ok: false, error: 'Tanda not found' })
   })
 })

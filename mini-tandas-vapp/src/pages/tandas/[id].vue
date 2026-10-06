@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
+import { canSell as tandaCanSell } from '@shared/domain/tanda'
 import { useTandasStore } from '@shared/stores/tandas'
 import type { SaleWithDetails } from '@shared/db/types'
 import TandaHeader from '@/features/tandas/components/TandaHeader.vue'
@@ -19,12 +20,7 @@ const tanda = computed(() => tandasStore.tandas.find((t) => t.id === route.param
  * Scheduled tandas take pre-orders while open; anticipated tandas sell
  * against the batch inventory once production is done (ready).
  */
-const canSell = computed(() => {
-  if (!tanda.value) return false
-  return tanda.value.type === 'scheduled'
-    ? tanda.value.status === 'open'
-    : tanda.value.status === 'ready'
-})
+const canSell = computed(() => (tanda.value ? tandaCanSell(tanda.value) : false))
 
 type Tab = 'sales' | 'inventory'
 const tab = ref<Tab>('sales')
@@ -94,7 +90,7 @@ function closeSaleDialog() {
           New sale
         </button>
       </div>
-      <SaleList :tanda-id="tanda.id" :status="tanda.status" @edit="openSaleEdit" />
+      <SaleList :tanda="tanda" @edit="openSaleEdit" />
     </template>
 
     <InventoryEditor v-else :tanda="tanda" :sellable="canSell" @sell="openSaleDialog" />

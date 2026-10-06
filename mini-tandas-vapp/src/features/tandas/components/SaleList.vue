@@ -4,12 +4,13 @@ import { useRouter } from 'vue-router'
 import { Truck } from 'lucide-vue-next'
 
 import { formatDateTime, formatMoney } from '@shared/db/format'
-import type { SaleWithDetails, TandaStatus } from '@shared/db/types'
+import type { SaleWithDetails, Tanda } from '@shared/db/types'
+import { canDeliver, canSell } from '@shared/domain/tanda'
 import { useTandasStore } from '@shared/stores/tandas'
 import ActionMenu from '@shared/ui/ActionMenu.vue'
 import { confirmDialog } from '@shared/ui/useConfirm'
 
-const props = defineProps<{ tandaId: string; status: TandaStatus }>()
+const props = defineProps<{ tanda: Pick<Tanda, 'id' | 'type' | 'status'> }>()
 
 const emit = defineEmits<{
   edit: [sale: SaleWithDetails]
@@ -18,13 +19,16 @@ const emit = defineEmits<{
 const tandasStore = useTandasStore()
 const router = useRouter()
 
-const sales = computed(() => tandasStore.salesFor(props.tandaId))
+const sales = computed(() => tandasStore.salesFor(props.tanda.id))
 
-/** Delivery can only be marked once the tanda passes from production to ready. */
-const canMarkDelivered = computed(() => props.status === 'ready' || props.status === 'closed')
+const canMarkDelivered = computed(() => canDeliver(props.tanda))
+/** Editing a sale is selling: only allowed while the tanda's sales window is open. */
+const canEditSales = computed(() => canSell(props.tanda))
 
 function onDelivered(sale: SaleWithDetails, event: Event) {
-  tandasStore.toggleDelivered(sale.id, (event.target as HTMLInputElement).checked)
+  const input = event.target as HTMLInputElement
+  const result = tandasStore.toggleDelivered(sale.id, input.checked)
+  if (!result.ok) input.checked = sale.delivered
 }
 
 /** Jump to the client's ledger with this sale pre-selected in the payment form. */
@@ -52,7 +56,7 @@ async function remove(sale: SaleWithDetails) {
           <span class="muted">{{ formatDateTime(sale.createdAt) }}</span>
         </div>
         <ActionMenu
-          :show-edit="true"
+          :show-edit="canEditSales"
           :show-pay="sale.balance > 0"
           @edit="emit('edit', sale)"
           @pay="recordPayment(sale)"

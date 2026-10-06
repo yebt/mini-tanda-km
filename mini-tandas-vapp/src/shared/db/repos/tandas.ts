@@ -1,6 +1,7 @@
 import { all, get, run, transaction, uid, nowIso } from '../database'
 import { getProduct, getSku, listSkus, resolvePrice } from './products'
 import { getClient } from './clients'
+import { canDeliver, canEditInventory, canSell, canTransition } from '../../domain/tanda'
 import type {
   InventoryEntry,
   SaleLine,
@@ -105,8 +106,19 @@ export function updateTanda(
   ])
 }
 
-export function setTandaStatus(id: string, status: TandaStatus): void {
+/** Outcome of a guarded write: either applied, or refused with a user-facing reason. */
+export type RepoResult = { ok: true } | { ok: false; error: string }
+
+const SALES_CLOSED = 'Sales are closed for this tanda'
+
+export function setTandaStatus(id: string, status: TandaStatus): RepoResult {
+  const tanda = getTanda(id)
+  if (!tanda) return { ok: false, error: 'Tanda not found' }
+  if (!canTransition(tanda.status, status)) {
+    return { ok: false, error: `Cannot move a tanda from ${tanda.status} to ${status}` }
+  }
   run('UPDATE tandas SET status = ? WHERE id = ?', [status, id])
+  return { ok: true }
 }
 
 // ── Inventory (anticipated tandas) ───────────────────────────────────────
@@ -146,7 +158,12 @@ export function listInventory(tandaId: string): InventoryEntry[] {
   })
 }
 
-export function setInventoryQuantity(tandaId: string, skuId: string, quantity: number): void {
+export function setInventoryQuantity(tandaId: string, skuId: string, quantity: number): RepoResult {
+  const tanda = getTanda(tandaId)
+  if (!tanda) return { ok: false, error: 'Tanda not found' }
+  if (!canEditInventory(tanda)) {
+    return { ok: false, error: 'Inventory can only be edited while the tanda is open' }
+  }
   const existing = get<{ id: string }>(
     'SELECT id FROM inventory_items WHERE tanda_id = ? AND sku_id = ?',
     [tandaId, skuId],
@@ -154,7 +171,7 @@ export function setInventoryQuantity(tandaId: string, skuId: string, quantity: n
   if (quantity <= 0) {
     if (existing)
       run('DELETE FROM inventory_items WHERE tanda_id = ? AND sku_id = ?', [tandaId, skuId])
-    return
+    return { ok: true }
   }
   if (existing) {
     run('UPDATE inventory_items SET quantity = ? WHERE tanda_id = ? AND sku_id = ?', [
@@ -170,6 +187,7 @@ export function setInventoryQuantity(tandaId: string, skuId: string, quantity: n
       quantity,
     ])
   }
+  return { ok: true }
 }
 
 // ── Sales ────────────────────────────────────────────────────────────────
@@ -262,6 +280,7 @@ export function createSale(input: {
 }): CreateSaleResult {
   const tanda = getTanda(input.tandaId)
   if (!tanda) return { ok: false, error: 'Tanda not found' }
+  if (!canSell(tanda)) return { ok: false, error: SALES_CLOSED }
   if (!getClient(input.clientId)) return { ok: false, error: 'Client not found' }
   if (input.items.length === 0) return { ok: false, error: 'Add at least one product' }
 
@@ -317,11 +336,12 @@ export function createSale(input: {
  * current price. Payments are untouched — the balance is derived on read.
  */
 export function updateSale(saleId: string, items: SaleItemInput[]): CreateSaleResult {
-  const sale = get<{ tanda_id: string; type: TandaType }>(
-    'SELECT s.tanda_id, t.type FROM sales s JOIN tandas t ON t.id = s.tanda_id WHERE s.id = ?',
+  const sale = get<{ tanda_id: string; type: TandaType; status: TandaStatus }>(
+    'SELECT s.tanda_id, t.type, t.status FROM sales s JOIN tandas t ON t.id = s.tanda_id WHERE s.id = ?',
     [saleId],
   )
   if (!sale) return { ok: false, error: 'Sale not found' }
+  if (!canSell(sale)) return { ok: false, error: SALES_CLOSED }
   if (items.length === 0) return { ok: false, error: 'Add at least one product' }
 
   const previousItems = all<{ sku_id: string; quantity: number; unit_price: number }>(
@@ -379,8 +399,17 @@ export function updateSale(saleId: string, items: SaleItemInput[]): CreateSaleRe
   return { ok: true, saleId }
 }
 
-export function setDelivered(saleId: string, delivered: boolean): void {
+export function setDelivered(saleId: string, delivered: boolean): RepoResult {
+  const sale = get<{ type: TandaType; status: TandaStatus }>(
+    'SELECT t.type, t.status FROM sales s JOIN tandas t ON t.id = s.tanda_id WHERE s.id = ?',
+    [saleId],
+  )
+  if (!sale) return { ok: false, error: 'Sale not found' }
+  if (!canDeliver(sale)) {
+    return { ok: false, error: 'Delivery can only be marked once the tanda is ready' }
+  }
   run('UPDATE sales SET delivered = ? WHERE id = ?', [delivered ? 1 : 0, saleId])
+  return { ok: true }
 }
 
 /** Deletes a sale; payments tied to it become general client payments. */

@@ -15,6 +15,7 @@ import {
   updateSale,
   updateTanda,
   type CreateSaleResult,
+  type RepoResult,
   type SaleItemInput,
   type TandaInput,
 } from '@shared/db/repos/tandas'
@@ -40,8 +41,8 @@ export const useTandasStore = defineStore('tandas', () => {
     updateTanda(id, patch)
   }
 
-  function moveStatus(tandaId: string, status: TandaStatus): void {
-    setTandaStatus(tandaId, status)
+  function moveStatus(tandaId: string, status: TandaStatus): RepoResult {
+    return setTandaStatus(tandaId, status)
   }
 
   function salesFor(tandaId: string): SaleWithDetails[] {
@@ -54,8 +55,8 @@ export const useTandasStore = defineStore('tandas', () => {
     return listInventory(tandaId)
   }
 
-  function setStock(tandaId: string, skuId: string, quantity: number): void {
-    setInventoryQuantity(tandaId, skuId, quantity)
+  function setStock(tandaId: string, skuId: string, quantity: number): RepoResult {
+    return setInventoryQuantity(tandaId, skuId, quantity)
   }
 
   function addSale(input: {
@@ -66,8 +67,8 @@ export const useTandasStore = defineStore('tandas', () => {
     return createSale(input)
   }
 
-  function toggleDelivered(saleId: string, delivered: boolean): void {
-    setDelivered(saleId, delivered)
+  function toggleDelivered(saleId: string, delivered: boolean): RepoResult {
+    return setDelivered(saleId, delivered)
   }
 
   function editSale(saleId: string, items: SaleItemInput[]): CreateSaleResult {

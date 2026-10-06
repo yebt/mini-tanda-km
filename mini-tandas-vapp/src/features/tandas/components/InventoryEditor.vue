@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 
 import type { Tanda } from '@shared/db/types'
+import { canEditInventory } from '@shared/domain/tanda'
 import { useProductsStore } from '@shared/stores/products'
 import { useTandasStore } from '@shared/stores/tandas'
 
@@ -18,7 +19,7 @@ const emit = defineEmits<{
 const tandasStore = useTandasStore()
 const productsStore = useProductsStore()
 
-const editable = computed(() => props.tanda.status === 'open')
+const editable = computed(() => canEditInventory(props.tanda))
 const catalog = computed(() => productsStore.catalog)
 
 const inventory = computed(() => tandasStore.inventoryFor(props.tanda.id))

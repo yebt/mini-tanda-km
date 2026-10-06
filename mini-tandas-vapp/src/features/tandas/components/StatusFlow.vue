@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import { TANDA_STATUS_ORDER, type Tanda, type TandaStatus } from '@shared/db/types'
+import type { Tanda, TandaStatus } from '@shared/db/types'
+import { nextStatus as nextOf, previousStatus as previousOf } from '@shared/domain/tanda'
 import { useTandasStore } from '@shared/stores/tandas'
 import { confirmDialog } from '@shared/ui/useConfirm'
 
@@ -34,15 +35,8 @@ const STATUS_BADGE: Record<TandaStatus, string> = {
 const statusBadgeClass = computed(() => STATUS_BADGE[props.tanda.status])
 const caption = computed(() => STATUS_CAPTIONS[props.tanda.type][props.tanda.status])
 
-const statusIndex = computed(() => TANDA_STATUS_ORDER.indexOf(props.tanda.status))
-
-const nextStatus = computed<TandaStatus | null>(() =>
-  statusIndex.value >= 0 ? (TANDA_STATUS_ORDER[statusIndex.value + 1] ?? null) : null,
-)
-
-const previousStatus = computed<TandaStatus | null>(() =>
-  statusIndex.value > 0 ? (TANDA_STATUS_ORDER[statusIndex.value - 1] ?? null) : null,
-)
+const nextStatus = computed<TandaStatus | null>(() => nextOf(props.tanda.status))
+const previousStatus = computed<TandaStatus | null>(() => previousOf(props.tanda.status))
 
 function advance() {
   if (nextStatus.value) {
