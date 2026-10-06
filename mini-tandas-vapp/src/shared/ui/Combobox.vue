@@ -1,7 +1,7 @@
 <script setup lang="ts">
 defineOptions({ name: 'SearchCombobox' })
 
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 
 export interface ComboOption {
   value: string
@@ -28,6 +28,9 @@ const emit = defineEmits<{
 
 const open = ref(false)
 const query = ref('')
+/** Index into `items` of the keyboard-highlighted option (-1 = none). */
+const activeIndex = ref(-1)
+const listId = useId()
 
 const root = ref<HTMLElement | null>(null)
 const listEl = ref<HTMLElement | null>(null)
@@ -106,12 +109,75 @@ const showCreate = computed(
     filtered.value.every((o) => o.label.toLowerCase() !== query.value.trim().toLowerCase()),
 )
 
+/** Every row of the listbox (options, then the optional "Create" row), with stable ids. */
+const items = computed(() => {
+  const rows: { id: string; option: ComboOption | null; disabled: boolean }[] = filtered.value.map(
+    (option, index) => ({
+      id: `${listId}-option-${index}`,
+      option,
+      disabled: option.disabled === true,
+    }),
+  )
+  if (showCreate.value) rows.push({ id: `${listId}-create`, option: null, disabled: false })
+  return rows
+})
+
+const activeId = computed(() =>
+  open.value && activeIndex.value >= 0 ? items.value[activeIndex.value]?.id : undefined,
+)
+
+// New results invalidate the highlighted row.
+watch(items, () => {
+  activeIndex.value = -1
+})
+
 function openList() {
   open.value = true
 }
 
 function closeList() {
   open.value = false
+  activeIndex.value = -1
+}
+
+/** Highlight the next enabled row in `direction` (wrapping from "none" to the ends). */
+function moveActive(direction: 1 | -1) {
+  const rows = items.value
+  let index = activeIndex.value
+  for (let step = 0; step < rows.length; step++) {
+    index = index < 0 ? (direction === 1 ? 0 : rows.length - 1) : index + direction
+    if (index < 0 || index >= rows.length) return
+    if (!rows[index]!.disabled) {
+      activeIndex.value = index
+      void nextTick(() => {
+        document.getElementById(rows[index]!.id)?.scrollIntoView?.({ block: 'nearest' })
+      })
+      return
+    }
+  }
+}
+
+function onArrow(direction: 1 | -1) {
+  if (!open.value) openList()
+  moveActive(direction)
+}
+
+/** Enter picks the highlighted row; otherwise it bubbles (e.g. to "add line"). */
+function onEnter(event: KeyboardEvent) {
+  if (!open.value || activeIndex.value < 0) return
+  const row = items.value[activeIndex.value]
+  if (!row) return
+  event.preventDefault()
+  event.stopPropagation()
+  if (row.option) pick(row.option)
+  else createFromQuery()
+}
+
+/** Escape closes the list only; when it is already closed it reaches the dialog. */
+function onEscape(event: KeyboardEvent) {
+  if (!open.value) return
+  event.preventDefault()
+  closeList()
 }
 
 function pick(option: ComboOption) {
@@ -166,25 +232,44 @@ defineExpose({ clear, focus })
       type="text"
       role="combobox"
       :aria-expanded="open"
+      :aria-controls="listId"
+      :aria-activedescendant="activeId"
       aria-autocomplete="list"
       :aria-label="ariaLabel"
       :placeholder="placeholder"
+      autocomplete="off"
       @input="onInput"
       @focus="openList"
       @blur="onBlur"
-      @keydown.escape.prevent="closeList"
-      @keydown.down.prevent="openList"
+      @keydown.escape="onEscape"
+      @keydown.down.prevent="onArrow(1)"
+      @keydown.up.prevent="onArrow(-1)"
+      @keydown.enter="onEnter"
     />
     <Teleport to="body">
       <div v-if="open" class="combo-backdrop" @click="closeList" @mousedown.prevent />
-      <div v-if="open" ref="listEl" class="combo-list" role="listbox" :style="listStyle">
-        <button
-          v-for="option in filtered"
+      <!-- Kept in the DOM (v-show) so the input's aria-controls always resolves. -->
+      <div
+        v-show="open"
+        :id="listId"
+        ref="listEl"
+        class="combo-list"
+        role="listbox"
+        :style="listStyle"
+        @mousedown.prevent
+      >
+        <div
+          v-for="(option, index) in filtered"
+          :id="items[index]?.id"
           :key="option.value"
-          type="button"
           role="option"
           class="combo-option"
-          :class="{ 'is-selected': option.value === modelValue, 'is-disabled': option.disabled }"
+          :class="{
+            'is-selected': option.value === modelValue,
+            'is-active': index === activeIndex,
+            'is-disabled': option.disabled,
+          }"
+          :aria-selected="option.value === modelValue"
           :aria-disabled="option.disabled || undefined"
           @click="pick(option)"
         >
@@ -193,17 +278,19 @@ defineExpose({ clear, focus })
             {{ option.disabledReason }}
           </span>
           <span v-else-if="option.hint" class="option-hint">{{ option.hint }}</span>
-        </button>
+        </div>
         <p v-if="filtered.length === 0 && !showCreate" class="combo-empty muted">No matches.</p>
-        <button
+        <div
           v-if="showCreate"
-          type="button"
+          :id="`${listId}-create`"
           role="option"
           class="combo-option combo-create"
+          :class="{ 'is-active': activeIndex === filtered.length }"
+          :aria-selected="false"
           @click="createFromQuery"
         >
           + Create "{{ query.trim() }}"
-        </button>
+        </div>
       </div>
     </Teleport>
   </div>
@@ -252,9 +339,15 @@ defineExpose({ clear, focus })
 }
 
 .combo-option:hover,
-.combo-option.is-selected {
+.combo-option.is-selected,
+.combo-option.is-active {
   background: var(--color-primary-soft);
   color: var(--color-primary);
+}
+
+/* The keyboard-highlighted row also gets a ring, distinct from hover/selection. */
+.combo-option.is-active {
+  box-shadow: inset 0 0 0 2px var(--color-primary);
 }
 
 .combo-option.is-disabled {

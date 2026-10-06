@@ -21,7 +21,7 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 - [x] T1 UX-01 Products without variations get one SKU (empty option set) + migration for existing products; tests.
 - [x] T2 UX-08 Inventory: unpriced SKUs cannot be stocked/sold (domain rule reused by UI and repo); tests.
 - [x] T3 UX-02 Dialog a11y: focus move, focus trap, Escape, focus restore, aria-labelledby/describedby (SaleDialog, ConfirmDialogHost).
-- [ ] T4 UX-03 Combobox keyboard support: active option, aria-activedescendant/aria-controls, Arrow/Enter/Escape.
+- [x] T4 UX-03 Combobox keyboard support: active option, aria-activedescendant/aria-controls, Arrow/Enter/Escape.
 - [ ] T5 UX-04/05/07 Contrast + focus visibility: badge colors >= 4.5:1, input borders and focus ring >= 3:1, delivered toggle focus-visible.
 - [ ] T6 UX-06 Label every unlabeled control.
 
@@ -44,6 +44,15 @@ Commit hashes are recorded in the following task's commit (a commit cannot conta
   `ConfirmDialogHost` (initial focus Cancel, `aria-labelledby` hidden title + `aria-describedby` message) and
   `SaleDialog` (`aria-labelledby` = SaleForm heading). Global `.visually-hidden` utility in `main.css`.
   Scroll lock unchanged. Checks: `bun run test:unit --run` 80/80 pass; `bun run type-check` pass; `bun run lint` pass.
+  Commit `2dc9d09`.
+- T4 (RED observed: 5/6 Combobox tests failed against the old component). `Combobox.vue` follows the ARIA 1.2
+  combobox pattern: `aria-controls` → listbox id (listbox kept in the DOM with `v-show`), `aria-activedescendant`,
+  options are `div[role=option]` with ids, `aria-selected`, `aria-disabled`; ArrowUp/Down move the active row
+  (skipping disabled, including the "Create" row), Enter picks it and stops propagation (so SaleForm's
+  "Enter adds a line" needs a second Enter), Escape closes the list and marks the event handled only while open
+  (so the dialog ignores it). Options keep focus in the input (`mousedown.prevent`); Teleport kept. Home/End not
+  added (caret keys in a text input). Checks: `bun run test:unit --run` 86/86 pass; `bun run type-check` pass;
+  `bun run lint` pass.
 
 ## Next step
-T4.
+T5.
