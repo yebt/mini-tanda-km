@@ -3,6 +3,7 @@ import initSqlJs, { type Database, type SqlValue } from 'sql.js'
 import wasmUrl from 'sql.js/dist/sql-wasm.wasm?url'
 
 import { idbGet, idbSet } from './idb'
+import { toCents } from './money'
 
 const DB_KEY = 'database'
 const PERSIST_DELAY_MS = 400
@@ -80,7 +81,8 @@ CREATE TABLE IF NOT EXISTS products (
   description TEXT,
   photo TEXT,
   price_mode TEXT NOT NULL DEFAULT 'global' CHECK (price_mode IN ('global', 'per_sku')),
-  price REAL,
+  -- Money columns hold integer cents (schema v2+).
+  price INTEGER,
   -- JSON array of variation ids that drive pricing (per_sku mode). Empty/NULL
   -- means the pricing variation subset has not been chosen yet.
   price_variation_ids TEXT
@@ -108,7 +110,7 @@ CREATE TABLE IF NOT EXISTS skus (
   id TEXT PRIMARY KEY,
   product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   option_ids TEXT NOT NULL,
-  price REAL
+  price INTEGER
 );
 
 -- Price rows keyed by a combination of options from the product's
@@ -117,7 +119,7 @@ CREATE TABLE IF NOT EXISTS sku_prices (
   id TEXT PRIMARY KEY,
   product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   option_ids TEXT NOT NULL,
-  price REAL NOT NULL
+  price INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS settings (
@@ -160,14 +162,14 @@ CREATE TABLE IF NOT EXISTS sale_items (
   sale_id TEXT NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
   sku_id TEXT NOT NULL,
   quantity INTEGER NOT NULL,
-  unit_price REAL NOT NULL
+  unit_price INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS payments (
   id TEXT PRIMARY KEY,
   client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
   sale_id TEXT,
-  amount REAL NOT NULL,
+  amount INTEGER NOT NULL,
   note TEXT,
   created_at TEXT NOT NULL
 );
@@ -200,10 +202,23 @@ export function openWithInstance(instance: Database): void {
   migrate()
 }
 
+/** Current schema version (PRAGMA user_version). */
+export const SCHEMA_VERSION = 2
+
+/** Columns holding money, stored as integer cents since schema v2. */
+const MONEY_COLUMNS: Record<string, string[]> = {
+  products: ['price'],
+  skus: ['price'],
+  sku_prices: ['price'],
+  sale_items: ['unit_price'],
+  payments: ['amount'],
+}
+
 /**
  * Idempotent, data-preserving migrations, tracked with PRAGMA user_version.
  * v0 → v1: per-SKU prices move from skus.price to sku_prices so pricing can
  * depend on a subset of variations.
+ * v1 → v2: money columns move from REAL currency units to integer cents.
  */
 function migrate(): void {
   const d = requireDb()
@@ -217,6 +232,26 @@ function migrate(): void {
            SELECT id, product_id, option_ids, price FROM skus WHERE price IS NOT NULL`)
     d.run('UPDATE skus SET price = NULL')
     d.run('PRAGMA user_version = 1')
+  }
+  if (version < 2) {
+    d.run('BEGIN')
+    try {
+      for (const [table, columns] of Object.entries(MONEY_COLUMNS)) {
+        for (const column of columns) {
+          const rows = all<{ id: string; value: number }>(
+            `SELECT id, ${column} AS value FROM ${table} WHERE ${column} IS NOT NULL`,
+          )
+          for (const row of rows) {
+            d.run(`UPDATE ${table} SET ${column} = ? WHERE id = ?`, [toCents(row.value), row.id])
+          }
+        }
+      }
+      d.run('PRAGMA user_version = 2')
+      d.run('COMMIT')
+    } catch (error) {
+      d.run('ROLLBACK')
+      throw error
+    }
   }
 }
 
@@ -291,12 +326,28 @@ export function exportAllData(): Record<string, Record<string, SqlValue>[]> {
   return Object.fromEntries(EXPORT_TABLES.map((table) => [table, all(`SELECT * FROM ${table}`)]))
 }
 
+/** Backup file contents: app marker, schema version (money unit) and data. */
+export function exportPayload(): {
+  app: 'mini-tanda'
+  schemaVersion: number
+  exportedAt: string
+  data: Record<string, Record<string, SqlValue>[]>
+} {
+  return {
+    app: 'mini-tanda',
+    schemaVersion: SCHEMA_VERSION,
+    exportedAt: nowIso(),
+    data: exportAllData(),
+  }
+}
+
 /**
  * Replace ALL app data with an exported payload (`{ app, exportedAt, data }`
  * or the bare `data` map). Children are deleted before parents to respect
  * foreign keys. Only columns that exist in each table are imported; unknown
- * keys are ignored so they never reach the SQL text. Returns the number of
- * rows inserted.
+ * keys are ignored so they never reach the SQL text. Backups without a
+ * `schemaVersion` >= 2 hold money as REAL currency units and are converted
+ * to cents. Returns the number of rows inserted.
  */
 export function importAllData(payload: unknown): number {
   const data =
@@ -307,6 +358,11 @@ export function importAllData(payload: unknown): number {
     throw new Error('Not a Mini Tanda export file.')
   }
   const rowsByTable = data as Record<string, unknown>
+  const schemaVersion =
+    typeof payload === 'object' && payload !== null && 'schemaVersion' in payload
+      ? Number((payload as { schemaVersion: unknown }).schemaVersion)
+      : 0
+  const moneyInCents = schemaVersion >= 2
   const unknownTables = Object.keys(rowsByTable).filter(
     (t) => !(EXPORT_TABLES as readonly string[]).includes(t),
   )
@@ -350,10 +406,14 @@ export function importAllData(payload: unknown): number {
         const record = row as Record<string, SqlValue>
         const columns = Object.keys(record).filter((column) => knownColumns.has(column))
         if (columns.length === 0) continue
+        const moneyColumns = moneyInCents ? [] : (MONEY_COLUMNS[table] ?? [])
         const placeholders = columns.map(() => '?').join(', ')
         run(
           `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`,
-          columns.map((c) => record[c] ?? null),
+          columns.map((c) => {
+            const value = record[c] ?? null
+            return typeof value === 'number' && moneyColumns.includes(c) ? toCents(value) : value
+          }),
         )
         inserted++
       }

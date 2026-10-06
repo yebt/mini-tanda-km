@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import { exportAllData, importAllData } from '@shared/db/database'
+import { exportPayload, importAllData } from '@shared/db/database'
 import { formatMoney } from '@shared/db/format'
 import { useSettingsStore } from '@shared/stores/settings'
 import { confirmDialog } from '@shared/ui/useConfirm'
@@ -25,11 +25,7 @@ function onThemeChange(event: Event): void {
 }
 
 function exportData(): void {
-  const payload = {
-    app: 'mini-tanda',
-    exportedAt: new Date().toISOString(),
-    data: exportAllData(),
-  }
+  const payload = exportPayload()
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')

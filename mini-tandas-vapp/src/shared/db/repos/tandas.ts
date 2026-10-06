@@ -1,6 +1,7 @@
 import { all, get, run, transaction, uid, nowIso } from '../database'
 import { getProduct, getSku, listSkus, resolvePrice } from './products'
 import { getClient } from './clients'
+import { fromCents, toCents } from '../money'
 import { canDeliver, canEditInventory, canSell, canTransition } from '../../domain/tanda'
 import type {
   InventoryEntry,
@@ -63,8 +64,8 @@ export function listTandas(): TandaSummary[] {
   ).map((row) => ({
     ...mapTanda(row),
     saleCount: row.sale_count,
-    revenue: row.revenue,
-    pendingBalance: row.pending,
+    revenue: fromCents(row.revenue),
+    pendingBalance: fromCents(row.pending),
   }))
 }
 
@@ -214,13 +215,14 @@ function buildSaleDetails(sale: {
         skuId: row.sku_id,
         label,
         quantity: row.quantity,
-        unitPrice: row.unit_price,
-        lineTotal: row.quantity * row.unit_price,
+        unitPrice: fromCents(row.unit_price),
+        lineTotal: fromCents(row.quantity * row.unit_price),
       },
     ]
   })
-  const total = items.reduce((sum, item) => sum + item.lineTotal, 0)
-  const paid =
+  // Sum in cents, convert once: exact totals regardless of float rounding.
+  const totalCents = itemRows.reduce((sum, row) => sum + row.quantity * row.unit_price, 0)
+  const paidCents =
     get<{ n: number }>('SELECT COALESCE(SUM(amount), 0) AS n FROM payments WHERE sale_id = ?', [
       sale.id,
     ])?.n ?? 0
@@ -232,9 +234,9 @@ function buildSaleDetails(sale: {
     createdAt: sale.created_at,
     client,
     items,
-    total,
-    paid,
-    balance: total - paid,
+    total: fromCents(totalCents),
+    paid: fromCents(paidCents),
+    balance: fromCents(totalCents - paidCents),
   }
 }
 
@@ -276,14 +278,15 @@ export type CreateSaleResult = { ok: true; saleId: string } | { ok: false; error
 interface PricedItem {
   skuId: string
   quantity: number
-  unitPrice: number
+  /** Snapshot unit price in integer cents (storage unit). */
+  unitPriceCents: number
 }
 
 type PricingResult = { ok: true; items: PricedItem[] } | { ok: false; error: string }
 
 /**
  * Resolve unit prices and check stock for a sale's lines (shared by create
- * and edit). `keepPrices` pins the snapshot price of lines the sale already
+ * and edit). `keepPrices` (cents) pins the snapshot price of lines the sale already
  * had, so an edit never reprices them; `ownQuantities` gives the sale's own
  * units back before the stock check, so keeping or shrinking lines never
  * fails against itself.
@@ -301,9 +304,13 @@ function priceSaleItems(
     const sku = getSku(item.skuId)
     const product = sku ? getProduct(sku.productId) : null
     if (!sku || !product) return { ok: false, error: 'Unknown product' }
-    const price = options.keepPrices?.get(item.skuId) ?? resolvePrice(product, sku)
-    if (price === null) return { ok: false, error: `"${product.name}" has no price set` }
-    priced.push({ skuId: sku.id, quantity: item.quantity, unitPrice: price })
+    let unitPriceCents = options.keepPrices?.get(item.skuId)
+    if (unitPriceCents === undefined) {
+      const price = resolvePrice(product, sku)
+      if (price === null) return { ok: false, error: `"${product.name}" has no price set` }
+      unitPriceCents = toCents(price)
+    }
+    priced.push({ skuId: sku.id, quantity: item.quantity, unitPriceCents })
   }
 
   // Anticipated tandas cannot sell more than what was produced.
@@ -330,7 +337,7 @@ function insertSaleItems(saleId: string, items: PricedItem[]): void {
   for (const item of items) {
     run(
       'INSERT INTO sale_items (id, sale_id, sku_id, quantity, unit_price) VALUES (?, ?, ?, ?, ?)',
-      [uid(), saleId, item.skuId, item.quantity, item.unitPrice],
+      [uid(), saleId, item.skuId, item.quantity, item.unitPriceCents],
     )
   }
 }

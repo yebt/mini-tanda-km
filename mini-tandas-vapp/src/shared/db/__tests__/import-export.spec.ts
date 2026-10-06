@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import initSqlJs from 'sql.js'
 
-import { all, exportAllData, importAllData, openWithInstance } from '../database'
+import { all, exportAllData, exportPayload, importAllData, openWithInstance } from '../database'
 import { addPayment, createClient } from '../repos/clients'
 import {
   addOption,
@@ -43,9 +43,7 @@ function seed() {
 describe('export → import round trip', () => {
   it('restores exactly the exported data into an empty database', async () => {
     seed()
-    const exported = JSON.parse(
-      JSON.stringify({ app: 'mini-tanda', exportedAt: 'now', data: exportAllData() }),
-    )
+    const exported = JSON.parse(JSON.stringify(exportPayload()))
 
     await freshDb()
     const inserted = importAllData(exported)

@@ -1,4 +1,5 @@
 import { all, get, run, transaction, uid } from '../database'
+import { fromCents, fromCentsOrNull, toCents, toCentsOrNull } from '../money'
 import type { PriceRow, Product, Sku, SkuWithProduct, Variation } from '../types'
 import { skuLabel } from '../types'
 
@@ -39,7 +40,7 @@ function mapProduct(row: ProductRow, variations: Variation[]): Product {
     description: row.description,
     photo: row.photo,
     priceMode: row.price_mode,
-    price: row.price,
+    price: fromCentsOrNull(row.price),
     priceVariationIds: row.price_variation_ids
       ? (JSON.parse(row.price_variation_ids) as string[])
       : [],
@@ -91,7 +92,7 @@ export function createProduct(input: ProductInput): string {
       input.description,
       input.photo,
       input.priceMode,
-      input.price,
+      toCentsOrNull(input.price),
       JSON.stringify(input.priceVariationIds ?? []),
     ],
   )
@@ -108,7 +109,7 @@ export function updateProduct(id: string, input: ProductInput): void {
       input.description,
       input.photo,
       input.priceMode,
-      input.price,
+      toCentsOrNull(input.price),
       JSON.stringify(priceVariationIds),
       id,
     ],
@@ -193,7 +194,7 @@ function mapSku(row: SkuRow): Sku {
     id: row.id,
     productId: row.product_id,
     optionIds: JSON.parse(row.option_ids) as string[],
-    price: row.price,
+    price: fromCentsOrNull(row.price),
   }
 }
 
@@ -269,7 +270,7 @@ function mapPriceRow(row: PriceRowRow): PriceRow {
     id: row.id,
     productId: row.product_id,
     optionIds: JSON.parse(row.option_ids) as string[],
-    price: row.price,
+    price: fromCents(row.price),
   }
 }
 
@@ -287,18 +288,19 @@ export function setPriceRow(productId: string, optionIds: string[], price: numbe
     'SELECT * FROM sku_prices WHERE product_id = ? AND option_ids = ?',
     [productId, key],
   )
-  if (price === null || price <= 0) {
+  const cents = price === null ? null : toCents(price)
+  if (cents === null || cents <= 0) {
     if (existing) run('DELETE FROM sku_prices WHERE id = ?', [existing.id])
     return
   }
   if (existing) {
-    run('UPDATE sku_prices SET price = ? WHERE id = ?', [price, existing.id])
+    run('UPDATE sku_prices SET price = ? WHERE id = ?', [cents, existing.id])
   } else {
     run('INSERT INTO sku_prices (id, product_id, option_ids, price) VALUES (?, ?, ?, ?)', [
       uid(),
       productId,
       key,
-      price,
+      cents,
     ])
   }
 }

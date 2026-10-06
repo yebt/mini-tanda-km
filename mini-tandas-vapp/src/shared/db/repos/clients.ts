@@ -1,6 +1,7 @@
 import { all, get, run, uid } from '../database'
 import type { Client, ClientSummary, PaymentWithContext } from '../types'
 import { nowIso } from '../database'
+import { fromCents, toCents } from '../money'
 
 interface ClientRow {
   id: string
@@ -32,9 +33,9 @@ export function listClients(): ClientSummary[] {
      ORDER BY c.name COLLATE NOCASE`,
   ).map((row) => ({
     ...mapClient(row),
-    totalSales: row.total_sales,
-    totalPayments: row.total_payments,
-    balance: row.total_sales - row.total_payments,
+    totalSales: fromCents(row.total_sales),
+    totalPayments: fromCents(row.total_payments),
+    balance: fromCents(row.total_sales - row.total_payments),
   }))
 }
 
@@ -89,7 +90,7 @@ export function listPayments(clientId?: string): PaymentWithContext[] {
     id: row.id,
     clientId: row.client_id,
     saleId: row.sale_id,
-    amount: row.amount,
+    amount: fromCents(row.amount),
     note: row.note,
     createdAt: row.created_at,
     clientName: row.client_name,
@@ -109,7 +110,7 @@ export function addPayment(input: PaymentInput): string {
   const id = uid()
   run(
     'INSERT INTO payments (id, client_id, sale_id, amount, note, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-    [id, input.clientId, input.saleId, input.amount, input.note, nowIso()],
+    [id, input.clientId, input.saleId, toCents(input.amount), input.note, nowIso()],
   )
   return id
 }

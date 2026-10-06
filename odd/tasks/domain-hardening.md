@@ -33,8 +33,8 @@ Branch `fix/domain-hardening`, one Conventional Commit per task. Strategy: ask-o
 - [x] T1 (3e7eb97) Pure domain module for tanda rules (`canSell`, `canDeliver`, `canEditInventory`, `canTransition`), enforced in repos and reused by components, with unit tests.
 - [x] T2 (05b64b7) Shared price+stock helper used by `createSale` and `updateSale` (remove duplication).
 - [x] T3 (bba8581) Harden `importAllData` (whitelist columns per table) + export/import round-trip test.
-- [x] T4 Persistence flush on `visibilitychange`/`pagehide`.
-- [ ] T5 Money stored as integer cents (schema migration, formatting unchanged for the user) + tests.
+- [x] T4 (33241cb) Persistence flush on `visibilitychange`/`pagehide`.
+- [x] T5 Money stored as integer cents (schema migration, formatting unchanged for the user) + tests.
 - [ ] T6 Split `SaleForm.vue` into a `useSaleDraft` composable; component/composable tests.
 - [ ] T7 Cleanup: move `shot-*.mjs` to `scripts/`, drop deprecated `Sku.price`, route settings export/import through a store.
 
@@ -68,5 +68,13 @@ Delegated direct (writer trigger: 2+ non-trivial files per task). RDD: off (glob
 - RED observed: 4 failing (`registerPersistenceFlush is not a function`).
 - Checks: `bun run test:unit --run`: 46 passed; `bun run type-check`: pass; `bun run lint`: pass (after typing `vi.fn` per oxlint `require-mock-type-parameters`).
 
+### T5 — money as integer cents (done)
+- Boundary: the repos. DB holds integer cents; repo functions, types, stores and UI keep currency units (e.g. `89.9`). Conversion lives only in `src/shared/db/money.ts` (`toCents` rounds half away from zero after `toPrecision(15)` to drop binary noise; `fromCents`). Sums are computed in cents and converted once.
+- Schema: money columns declared `INTEGER` for new DBs; migration v1 → v2 (`SCHEMA_VERSION = 2`) converts `products.price`, `skus.price`, `sku_prices.price`, `sale_items.unit_price`, `payments.amount` in JS with `toCents`, inside a transaction. Existing DBs keep their declared `REAL` affinity (values are whole numbers, exact); a table rebuild was not worth the risk.
+- Backups: `exportPayload()` adds `schemaVersion`; the settings page uses it. `importAllData` converts money columns with `toCents` when `schemaVersion` is missing or < 2 (old backups).
+- Tests (`money.spec.ts`): rounding, API-in-units/DB-in-cents, exact totals/balances/revenue (0.1 × 3 = 0.3), v1 → v2 migration with rounding and idempotent reopen, round trip with `schemaVersion`, old REAL backup import. T3 round-trip test now uses `exportPayload()`.
+- RED observed: 5 failing before the migration/conversion (helper tests passed once `money.ts` existed).
+- Checks: `bun run test:unit --run`: 53 passed; `bun run type-check`: pass; `bun run lint`: pass.
+
 ## Next step
-T5.
+T6.
