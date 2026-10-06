@@ -265,7 +265,9 @@ export function exportAllData(): Record<string, Record<string, SqlValue>[]> {
 /**
  * Replace ALL app data with an exported payload (`{ app, exportedAt, data }`
  * or the bare `data` map). Children are deleted before parents to respect
- * foreign keys. Returns the number of rows inserted.
+ * foreign keys. Only columns that exist in each table are imported; unknown
+ * keys are ignored so they never reach the SQL text. Returns the number of
+ * rows inserted.
  */
 export function importAllData(payload: unknown): number {
   const data =
@@ -307,9 +309,17 @@ export function importAllData(payload: unknown): number {
     for (const table of EXPORT_TABLES) {
       const rows = rowsByTable[table]
       if (!Array.isArray(rows)) continue
+      // Only real columns of the table reach the SQL text; anything else in
+      // the file (unknown or hostile keys) is ignored.
+      const knownColumns = new Set(
+        all<{ name: string }>(`PRAGMA table_info(${table})`).map((column) => column.name),
+      )
       for (const row of rows) {
+        if (typeof row !== 'object' || row === null || Array.isArray(row)) {
+          throw new Error(`Invalid row in table "${table}".`)
+        }
         const record = row as Record<string, SqlValue>
-        const columns = Object.keys(record)
+        const columns = Object.keys(record).filter((column) => knownColumns.has(column))
         if (columns.length === 0) continue
         const placeholders = columns.map(() => '?').join(', ')
         run(

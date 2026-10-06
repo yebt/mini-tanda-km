@@ -31,8 +31,8 @@ Branch `fix/domain-hardening`, one Conventional Commit per task. Strategy: ask-o
 
 ## Tasks
 - [x] T1 (3e7eb97) Pure domain module for tanda rules (`canSell`, `canDeliver`, `canEditInventory`, `canTransition`), enforced in repos and reused by components, with unit tests.
-- [x] T2 Shared price+stock helper used by `createSale` and `updateSale` (remove duplication).
-- [ ] T3 Harden `importAllData` (whitelist columns per table) + export/import round-trip test.
+- [x] T2 (05b64b7) Shared price+stock helper used by `createSale` and `updateSale` (remove duplication).
+- [x] T3 Harden `importAllData` (whitelist columns per table) + export/import round-trip test.
 - [ ] T4 Persistence flush on `visibilitychange`/`pagehide`.
 - [ ] T5 Money stored as integer cents (schema migration, formatting unchanged for the user) + tests.
 - [ ] T6 Split `SaleForm.vue` into a `useSaleDraft` composable; component/composable tests.
@@ -56,5 +56,11 @@ Delegated direct (writer trigger: 2+ non-trivial files per task). RDD: off (glob
 - Refactor under existing coverage (no meaningful RED); added a characterization test for edit pricing (old line keeps snapshot, new line takes current price, unknown SKU refused).
 - Checks: `bun run test:unit --run`: 38 passed; `bun run type-check`: pass; `bun run lint`: pass.
 
+### T3 — import hardening (done)
+- `importAllData` reads `PRAGMA table_info(<table>)` per table (table names come from the static `EXPORT_TABLES` list) and only inserts known columns; unknown/hostile keys are ignored. Non-object rows throw `Invalid row in table "<t>".` inside the transaction (rollback keeps current data).
+- Tests (`import-export.spec.ts`): round trip export → import into an empty DB equals the export; malicious column name is ignored and `clients` survives; invalid row leaves data untouched; unknown tables still rejected.
+- RED observed: malicious-column and invalid-row tests failed before the fix (round trip already passed).
+- Checks: `bun run test:unit --run`: 42 passed; `bun run type-check`: pass; `bun run lint`: pass.
+
 ## Next step
-T3.
+T4.
