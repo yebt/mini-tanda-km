@@ -73,6 +73,7 @@ Commit hashes are recorded in the following task's commit (a commit cannot conta
   E2E switched to `getByLabel` for price, produced, tanda name/date, new variation/option inputs.
   Checks: `bun run test:unit --run` 102/102 pass; `bun run type-check` pass; `bun run lint` pass;
   `bun run build-only` pass; `CI=1 bunx playwright test --retries=0 --project=chromium --project=firefox` 8/8 pass.
+  Commit `0bc2f18`.
 
 ## Next step
 Feature complete. Push / PR are the user's decision.
