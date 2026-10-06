@@ -19,7 +19,7 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 
 ## Tasks
 - [x] T1 UX-01 Products without variations get one SKU (empty option set) + migration for existing products; tests.
-- [ ] T2 UX-08 Inventory: unpriced SKUs cannot be stocked/sold (domain rule reused by UI and repo); tests.
+- [x] T2 UX-08 Inventory: unpriced SKUs cannot be stocked/sold (domain rule reused by UI and repo); tests.
 - [ ] T3 UX-02 Dialog a11y: focus move, focus trap, Escape, focus restore, aria-labelledby/describedby (SaleDialog, ConfirmDialogHost).
 - [ ] T4 UX-03 Combobox keyboard support: active option, aria-activedescendant/aria-controls, Arrow/Enter/Escape.
 - [ ] T5 UX-04/05/07 Contrast + focus visibility: badge colors >= 4.5:1, input borders and focus ring >= 3:1, delivered toggle focus-visible.
@@ -32,7 +32,11 @@ Commit hashes are recorded in the following task's commit (a commit cannot conta
   `recomputeSkus` keeps the empty combination as the default SKU; `createProduct` creates it; schema v3
   migration + `importAllData` backfill (`ensureDefaultSkus`) for products saved by older versions.
   Checks: `bun run test:unit --run` 71/71 pass; `bun run type-check` pass; `bun run lint` pass.
-  E2E `product without variations` added to `e2e/smoke.spec.ts` (run at closure).
+  E2E `product without variations` added to `e2e/smoke.spec.ts` (run at closure). Commit `e4d5003`.
+- T2 (RED observed: domain + repo tests failed, InventoryEditor component tests failed with the old template).
+  `isSkuSellable` / `UNPRICED_SKU_REASON` in `src/shared/domain/tanda.ts`, reused by `setInventoryQuantity`
+  (refuses quantity > 0 for unpriced SKUs), `InventoryEditor` (no stock input / no Sell, reason + link to Products)
+  and `useSaleDraft`. Checks: `bun run test:unit --run` 75/75 pass; `bun run type-check` pass; `bun run lint` pass.
 
 ## Next step
-T2.
+T3.

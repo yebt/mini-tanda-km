@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import type { Tanda } from '@shared/db/types'
-import { canEditInventory } from '@shared/domain/tanda'
+import type { SkuWithProduct, Tanda } from '@shared/db/types'
+import { canEditInventory, isSkuSellable, UNPRICED_SKU_REASON } from '@shared/domain/tanda'
 import { useProductsStore } from '@shared/stores/products'
 import { useTandasStore } from '@shared/stores/tandas'
 
@@ -28,8 +28,13 @@ const { producedOf, soldOf, availableOf } = useInventoryAvailability(() =>
   tandasStore.inventoryFor(props.tanda.id),
 )
 
-function canSellSku(skuId: string): boolean {
-  return props.sellable && availableOf(skuId) > 0
+function canSellSku(sku: SkuWithProduct): boolean {
+  return props.sellable && isSkuSellable(sku) && availableOf(sku.id) > 0
+}
+
+/** Unpriced SKUs cannot be stocked; keep the input only to clear legacy stock. */
+function canStockSku(sku: SkuWithProduct): boolean {
+  return isSkuSellable(sku) || producedOf(sku.id) > 0
 }
 
 function onStock(skuId: string, event: Event) {
@@ -73,6 +78,7 @@ function sell(skuId: string) {
             <td>{{ sku.label || 'Default' }}</td>
             <td v-if="editable" class="col-num">
               <input
+                v-if="canStockSku(sku)"
                 class="input qty-input"
                 type="number"
                 min="0"
@@ -80,6 +86,10 @@ function sell(skuId: string) {
                 :value="producedOf(sku.id)"
                 @change="onStock(sku.id, $event)"
               />
+              <span v-if="!isSkuSellable(sku)" class="muted no-price">
+                {{ UNPRICED_SKU_REASON }} —
+                <RouterLink to="/products">set it in Products</RouterLink>
+              </span>
             </td>
             <template v-else>
               <td class="col-num">{{ producedOf(sku.id) }}</td>
@@ -89,13 +99,16 @@ function sell(skuId: string) {
               </td>
               <td v-if="sellable" class="col-action">
                 <button
-                  v-if="canSellSku(sku.id)"
+                  v-if="canSellSku(sku)"
                   type="button"
                   class="btn btn-ghost"
                   @click="sell(sku.id)"
                 >
                   Sell
                 </button>
+                <span v-else-if="!isSkuSellable(sku)" class="muted no-price">
+                  {{ UNPRICED_SKU_REASON }}
+                </span>
                 <span v-else class="muted">—</span>
               </td>
             </template>
@@ -109,13 +122,17 @@ function sell(skuId: string) {
           <div v-for="sku in group.skus" :key="sku.id" class="inventory-row">
             <div class="inventory-info">
               <span class="sku-label">{{ sku.label || 'Default' }}</span>
-              <span v-if="editable" class="muted">produced</span>
+              <span v-if="!isSkuSellable(sku)" class="muted no-price">
+                {{ UNPRICED_SKU_REASON }} —
+                <RouterLink to="/products">set it in Products</RouterLink>
+              </span>
+              <span v-else-if="editable" class="muted">produced</span>
               <span v-else class="muted" :class="{ 'stock-out': availableOf(sku.id) === 0 }">
                 {{ availableOf(sku.id) }} available
               </span>
             </div>
             <input
-              v-if="editable"
+              v-if="editable && canStockSku(sku)"
               class="input qty-input"
               type="number"
               min="0"
@@ -124,7 +141,7 @@ function sell(skuId: string) {
               @change="onStock(sku.id, $event)"
             />
             <button
-              v-else-if="canSellSku(sku.id)"
+              v-else-if="!editable && canSellSku(sku)"
               type="button"
               class="btn btn-ghost sell-btn"
               @click="sell(sku.id)"
@@ -214,5 +231,9 @@ h2 {
 
 .sell-btn {
   flex-shrink: 0;
+}
+
+.no-price {
+  font-size: 0.85rem;
 }
 </style>

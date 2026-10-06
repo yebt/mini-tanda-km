@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import initSqlJs from 'sql.js'
 
-import { all, exportPayload, get, importAllData, openWithInstance, SCHEMA_VERSION } from '../database'
+import {
+  all,
+  exportPayload,
+  get,
+  importAllData,
+  openWithInstance,
+  SCHEMA_VERSION,
+} from '../database'
 import { fromCents, toCents } from '../money'
 import { addPayment, createClient, listClients, listPayments } from '../repos/clients'
 import {

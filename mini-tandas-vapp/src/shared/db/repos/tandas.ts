@@ -7,6 +7,7 @@ import {
   canEditInventory,
   canSell,
   canTransition,
+  isSkuSellable,
   tracksInventory,
 } from '../../domain/tanda'
 import type {
@@ -175,6 +176,16 @@ export function setInventoryQuantity(tandaId: string, skuId: string, quantity: n
     'SELECT id FROM inventory_items WHERE tanda_id = ? AND sku_id = ?',
     [tandaId, skuId],
   )
+  if (quantity > 0) {
+    const sku = getSku(skuId)
+    const product = sku ? getProduct(sku.productId) : null
+    if (!sku || !product) return { ok: false, error: 'Unknown product' }
+    if (!isSkuSellable({ price: resolvePrice(product, sku) })) {
+      const label = skuLabel(product, sku)
+      const name = label ? `${product.name} (${label})` : product.name
+      return { ok: false, error: `"${name}" has no price — set it in Products` }
+    }
+  }
   if (quantity <= 0) {
     if (existing)
       run('DELETE FROM inventory_items WHERE tanda_id = ? AND sku_id = ?', [tandaId, skuId])

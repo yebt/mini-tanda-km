@@ -568,6 +568,22 @@ describe('tanda status rules enforced by repos', () => {
     expect(createSale({ tandaId, clientId, items: [{ skuId: sku.id, quantity: 1 }] }).ok).toBe(true)
   })
 
+  it('refuses stocking SKUs without a resolved price', () => {
+    const { productId, sizeId, redVelvet, family } = makeCake()
+    priceBySize(productId, sizeId, { [family]: 100 })
+    const unpriced = listSkusWithProducts().find(
+      (s) => s.productId === productId && s.price === null && s.optionIds.includes(redVelvet),
+    )!
+    const tandaId = createTanda({ name: 'T', date: '2026-09-30', type: 'anticipated' })
+    expect(setInventoryQuantity(tandaId, unpriced.id, 12)).toEqual({
+      ok: false,
+      error: '"Cake (Red Velvet · Personal)" has no price — set it in Products',
+    })
+    expect(listInventory(tandaId)).toHaveLength(0)
+    // Clearing stock is always allowed.
+    expect(setInventoryQuantity(tandaId, unpriced.id, 0)).toEqual({ ok: true })
+  })
+
   it('refuses inventory edits unless the anticipated tanda is open', () => {
     const { sku, tandaId } = setup('anticipated')
     setTandaStatus(tandaId, 'production')

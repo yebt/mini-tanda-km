@@ -8,7 +8,7 @@ import type {
   SkuWithProduct,
   TandaType,
 } from '@shared/db/types'
-import { tracksInventory } from '@shared/domain/tanda'
+import { isSkuSellable, tracksInventory, UNPRICED_SKU_REASON } from '@shared/domain/tanda'
 import type { ComboOption } from '@shared/ui/Combobox.vue'
 
 export interface DraftLine {
@@ -89,7 +89,7 @@ export function useSaleDraft(options: {
     toValue(options.catalog).flatMap((group) =>
       group.skus.map((sku) => {
         const unavailable = limitedByStock.value && availableOf(sku.id) <= 0
-        const unpriced = sku.price === null
+        const unpriced = !isSkuSellable(sku)
         const price = sku.price ?? 0
         return {
           value: sku.id,
@@ -100,7 +100,7 @@ export function useSaleDraft(options: {
               ? `no stock · ${formatMoney(price)}`
               : `${formatMoney(price)} · ${availableOf(sku.id)} available`,
           disabled: unpriced || unavailable,
-          disabledReason: unpriced ? 'No price set' : 'Out of stock',
+          disabledReason: unpriced ? UNPRICED_SKU_REASON : 'Out of stock',
         }
       }),
     ),

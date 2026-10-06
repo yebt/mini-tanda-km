@@ -33,6 +33,17 @@ export function canEditInventory(tanda: TandaState): boolean {
   return tracksInventory(tanda) && tanda.status === 'open'
 }
 
+/**
+ * A SKU can be stocked or sold only once it has a resolved price (SPECS:
+ * "A SKU without a resolved price cannot be sold").
+ */
+export function isSkuSellable(sku: { price: number | null }): boolean {
+  return sku.price !== null
+}
+
+/** Why an unpriced SKU cannot be stocked or sold, for UI hints. */
+export const UNPRICED_SKU_REASON = 'No price set'
+
 /** Status moves one step at a time, forward or back (open → production → ready → closed). */
 export function canTransition(from: TandaStatus, to: TandaStatus): boolean {
   const fromIndex = TANDA_STATUS_ORDER.indexOf(from)

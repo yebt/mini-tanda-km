@@ -6,6 +6,7 @@ import {
   canEditInventory,
   canSell,
   canTransition,
+  isSkuSellable,
   nextStatus,
   previousStatus,
   tracksInventory,
@@ -89,5 +90,12 @@ describe('tracksInventory', () => {
   it('only anticipated tandas are limited by stock', () => {
     expect(tracksInventory({ type: 'anticipated' })).toBe(true)
     expect(tracksInventory({ type: 'scheduled' })).toBe(false)
+  })
+})
+
+describe('isSkuSellable', () => {
+  it('requires a resolved price to stock or sell a SKU', () => {
+    expect(isSkuSellable({ price: 120 })).toBe(true)
+    expect(isSkuSellable({ price: null })).toBe(false)
   })
 })
