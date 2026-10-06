@@ -314,3 +314,14 @@ test('mobile: New tanda opens the form, one New sale, large text reflows, FAB le
     page.locator('.bottom-nav').getByRole('link', { name: 'Settings' }),
   ).toBeVisible()
 })
+
+test('boot: a storage/WASM failure shows a readable error instead of a blank page', async ({
+  page,
+}) => {
+  await page.route('**/*.wasm', (route) => route.abort())
+  await page.goto('/')
+  const alert = page.getByRole('alert')
+  await expect(alert.getByRole('heading', { name: 'Mini Tanda could not start' })).toBeVisible()
+  await expect(alert.getByRole('button', { name: 'Reload' })).toBeFocused()
+  await expect(page.locator('.boot-splash')).toHaveCount(0)
+})

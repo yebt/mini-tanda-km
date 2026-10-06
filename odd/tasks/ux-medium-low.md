@@ -24,7 +24,7 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 - [x] T3 Feedback, errors & forms: UX-19, UX-20, UX-21, UX-23, UX-31, UX-36, UX-37
 - [x] T4 Dialogs, menus & destructive actions: UX-17, UX-18, UX-24, UX-27, UX-28, UX-43
 - [x] T5 Content & consistency: UX-22, UX-25, UX-29, UX-34, UX-35, UX-40, UX-41, UX-44, UX-47
-- [ ] T6 Perceived performance: UX-30
+- [x] T6 Perceived performance: UX-30
 
 ## Progress / evidence
 
@@ -81,7 +81,7 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 - Checks: unit 25 files / 138 tests passed; type-check 0 errors; lint clean; e2e chromium+firefox 12/12 (journey now confirms the production advance).
 
 
-### T5 — Content & consistency (commit: next after 6793513)
+### T5 — Content & consistency (commit 9f2140b)
 - UX-22: option hints show the stock count only for stock-limited (anticipated) tandas; scheduled shows just the price.
 - UX-25: `shared/ui/badges.ts` centralizes status/type → class + label for dashboard, list, header, status flow and client page. New gray `badge-neutral` (`--color-neutral-soft/ink`, contrast-tested) and amber `badge-warning` (production only). Decision: price-mode badges and "General" payments are gray facts.
 - UX-29: client sales grouped per tanda (heading link with name, date, status, pending total; newest tanda date first) with a per-sale "Record payment" that sets `?pay=` and pre-selects the sale in the payment form on the same page.
@@ -95,5 +95,12 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 - RED observed: useSaleDraft hint, InventoryEditor (2), badges (missing module), format locale, ClientSalesList, SaleList label all failed before, pass after.
 - Checks: unit 30 files / 147 tests passed; type-check 0 errors; lint clean; e2e chromium+firefox 12/12 (Clients FAB focus assertion added).
 
+
+### T6 — Perceived performance (commit: next after 9f2140b)
+- UX-30: `index.html` ships a static splash inside `#app` (`role="status"`, "Loading Mini Tanda…", spinner that honors reduced motion, token colors with OS-theme fallbacks) that Vue replaces on mount. `bootstrap()` failures render `renderBootError` (`src/core/bootError.ts`): `role="alert"` panel with a heading, likely causes (private window, full storage, blocked site data), steps incl. Export/Reset guidance, technical detail and a focused Reload button.
+- Decision: no in-page "Reset data" button (it would delete everything with no way back); reset is explained as guidance only.
+- RED observed: `bootError.spec.ts` failed (missing module) before. New e2e aborts the `.wasm` request and asserts the error screen.
+- Checks: unit 31 files / 149 tests passed; type-check 0 errors; lint clean; `bun run build-only` OK (dist/index.html contains the splash); e2e chromium+firefox 14/14 passed.
+
 ## Next step
-T6.
+Done — remediation status recorded in `docs/UX-AUDIT.md`. Push/PR is the user's decision.

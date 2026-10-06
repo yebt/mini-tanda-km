@@ -6,9 +6,94 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#ffffff">
     <title>Mini Tanda</title>
+    <!-- Boot splash / error styles: inline so they show before the app bundle loads. -->
+    <style>
+      /* Fallback colors until main.css (tokens) loads; tokens then follow data-theme. */
+      :root {
+        --boot-bg: #faf6f0;
+        --boot-ink: #2b2118;
+        --boot-ink-soft: #6b5d4f;
+        --boot-track: #e8dfd2;
+        --boot-accent: #b3541e;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --boot-bg: #1b1410;
+          --boot-ink: #f3ece3;
+          --boot-ink-soft: #a39481;
+          --boot-track: #453729;
+          --boot-accent: #d96f35;
+        }
+      }
+      .boot-splash,
+      .boot-error {
+        font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        color: var(--color-ink, var(--boot-ink));
+      }
+      .boot-splash {
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        background: var(--color-bg, var(--boot-bg));
+        font-weight: 600;
+      }
+      .boot-spinner {
+        width: 28px;
+        height: 28px;
+        border: 3px solid var(--color-border, var(--boot-track));
+        border-top-color: var(--color-primary, var(--boot-accent));
+        border-radius: 50%;
+        animation: boot-spin 0.9s linear infinite;
+      }
+      @keyframes boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-spinner {
+          animation: none;
+        }
+      }
+      .boot-error {
+        max-width: 34rem;
+        margin: 2rem auto;
+        padding: 1.5rem;
+        line-height: 1.5;
+      }
+      .boot-error h1 {
+        font-size: 1.4rem;
+        margin: 0 0 0.75rem;
+      }
+      .boot-error-detail {
+        color: var(--color-ink-soft, var(--boot-ink-soft));
+        font-size: 0.85rem;
+        overflow-wrap: anywhere;
+      }
+      .boot-error button {
+        min-height: 44px;
+        padding: 0.45rem 1.2rem;
+        border: 1px solid var(--color-primary, var(--boot-accent));
+        border-radius: 6px;
+        background: var(--color-primary, var(--boot-accent));
+        color: var(--color-on-primary, #fff);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <!-- Replaced when the app mounts (sql.js + IndexedDB load first). -->
+      <div class="boot-splash" role="status" aria-live="polite">
+        <div class="boot-spinner" aria-hidden="true"></div>
+        <span>Loading Mini Tanda…</span>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
