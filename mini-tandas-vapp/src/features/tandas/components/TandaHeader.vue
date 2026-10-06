@@ -56,8 +56,19 @@ function saveDate() {
     <div class="row-between">
       <div>
         <div v-if="editable" class="row header-edit">
-          <input v-model="name" class="input name-input" @change="saveName" />
-          <input v-model="date" class="input date-input" type="date" @change="saveDate" />
+          <input
+            v-model="name"
+            class="input name-input"
+            aria-label="Tanda name"
+            @change="saveName"
+          />
+          <input
+            v-model="date"
+            class="input date-input"
+            type="date"
+            aria-label="Tanda date"
+            @change="saveDate"
+          />
         </div>
         <div v-else class="row header-view">
           <h1>{{ tanda.name }}</h1>

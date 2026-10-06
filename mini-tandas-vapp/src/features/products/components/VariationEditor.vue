@@ -93,6 +93,7 @@ async function removeOption(variation: Variation, option: VariationOption) {
           type="text"
           class="input"
           placeholder="New option, e.g. Coffee"
+          :aria-label="`New option for ${variation.name}`"
           :value="draftFor(variation.id)"
           @input="setDraft(variation.id, $event)"
           @keydown.enter.prevent="addOption(variation)"
@@ -107,6 +108,7 @@ async function removeOption(variation: Variation, option: VariationOption) {
         type="text"
         class="input"
         placeholder="New variation, e.g. SIZE"
+        aria-label="New variation name"
         @keydown.enter.prevent="addVariation"
       />
       <button type="button" class="btn" @click="addVariation">Add variation</button>

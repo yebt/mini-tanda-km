@@ -13,10 +13,10 @@ test('full journey: product priced by one variation → client → scheduled tan
   await page.locator('button[type="submit"].btn-primary').click()
 
   // Landed on the Variations & pricing tab: add SIZE with two options.
-  await page.getByPlaceholder('New variation, e.g. SIZE').fill('SIZE')
+  await page.getByLabel('New variation name').fill('SIZE')
   await page.getByRole('button', { name: 'Add variation' }).click()
   const sizeEditor = page.locator('.card', { hasText: 'SIZE' }).last()
-  await sizeEditor.getByPlaceholder('New option, e.g. Coffee').fill('Personal')
+  await page.getByLabel('New option for SIZE').fill('Personal')
   await sizeEditor.getByRole('button', { name: 'Add option' }).click()
   await sizeEditor.getByPlaceholder('New option, e.g. Coffee').fill('Family')
   await sizeEditor.getByRole('button', { name: 'Add option' }).click()
@@ -26,8 +26,8 @@ test('full journey: product priced by one variation → client → scheduled tan
   // Price depends on SIZE only — one price per size covers every future flavor.
   await page.getByRole('checkbox', { name: /SIZE/ }).check()
   const personalRow = page.locator('tr', { hasText: 'Personal' })
-  await personalRow.locator('input.price-input').fill('90')
-  await personalRow.locator('input.price-input').press('Tab')
+  await page.getByLabel('Price for Personal').fill('90')
+  await page.getByLabel('Price for Personal').press('Tab')
   await expect(personalRow.locator('.no-price')).toHaveCount(0)
 
   // ── Client ─────────────────────────────────────────────────────────────
@@ -41,6 +41,8 @@ test('full journey: product priced by one variation → client → scheduled tan
   await page.getByRole('button', { name: 'New tanda' }).click()
   await expect(page.locator('#tanda-name')).toHaveValue(/^Tanda /)
   await page.getByRole('button', { name: 'Create tanda' }).click()
+  await expect(page.getByLabel('Tanda name')).toHaveValue(/^Tanda /)
+  await expect(page.getByLabel('Tanda date')).toBeVisible()
 
   // Landed on the tanda detail page; sales are open while scheduled+open.
   await expect(page.getByText('open', { exact: false }).first()).toBeVisible()
@@ -106,8 +108,8 @@ test('anticipated tanda: stock in open, sales open once ready', async ({ page })
     has: page.getByRole('heading', { name: 'Inventory' }),
   })
   const bigInventoryRow = inventorySection.locator('tr', { hasText: 'Big' })
-  await bigInventoryRow.locator('input.qty-input').fill('5')
-  await bigInventoryRow.locator('input.qty-input').press('Tab')
+  await inventorySection.locator('table').getByLabel('Produced — Cookie (Big)').fill('5')
+  await inventorySection.locator('table').getByLabel('Produced — Cookie (Big)').press('Tab')
 
   await page.getByRole('button', { name: 'Advance to production' }).click()
   await expect(page.getByText('Baking is underway')).toBeVisible()
@@ -156,9 +158,9 @@ test('product without variations: one global price, stocked and sold', async ({ 
   const inventorySection = page.locator('section', {
     has: page.getByRole('heading', { name: 'Inventory' }),
   })
-  const defaultRow = inventorySection.locator('tr', { hasText: 'Default' })
-  await defaultRow.locator('input.qty-input').fill('4')
-  await defaultRow.locator('input.qty-input').press('Tab')
+  const produced = inventorySection.locator('table').getByLabel('Produced — Cookies box')
+  await produced.fill('4')
+  await produced.press('Tab')
   await page.getByRole('button', { name: 'Advance to production' }).click()
   await page.getByRole('button', { name: 'Advance to ready' }).click()
 

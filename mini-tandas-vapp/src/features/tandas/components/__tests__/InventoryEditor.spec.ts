@@ -64,7 +64,9 @@ describe('InventoryEditor', () => {
     const { tandaId } = seed()
     const wrapper = mountEditor(tandaId, false)
 
-    expect(rowOf(wrapper, 'Small').find('input').exists()).toBe(true)
+    expect(rowOf(wrapper, 'Small').find('input').attributes('aria-label')).toBe(
+      'Produced — Flan (Small)',
+    )
     const large = rowOf(wrapper, 'Large')
     expect(large.find('input').exists()).toBe(false)
     expect(large.text()).toContain('No price set')

@@ -82,6 +82,7 @@ function commit(key: string) {
             step="0.01"
             class="input price-input"
             placeholder="—"
+            :aria-label="`Price for ${row.label}`"
             @change="commit(row.key)"
             @blur="commit(row.key)"
           />

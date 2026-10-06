@@ -37,6 +37,11 @@ function canStockSku(sku: SkuWithProduct): boolean {
   return isSkuSellable(sku) || producedOf(sku.id) > 0
 }
 
+/** Accessible name for a SKU's produced-quantity input, e.g. "Produced — Cake (Large)". */
+function producedLabel(sku: SkuWithProduct): string {
+  return `Produced — ${sku.label ? `${sku.productName} (${sku.label})` : sku.productName}`
+}
+
 function onStock(skuId: string, event: Event) {
   const raw = Number((event.target as HTMLInputElement).value)
   const quantity = Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 0
@@ -84,6 +89,7 @@ function sell(skuId: string) {
                 min="0"
                 step="1"
                 :value="producedOf(sku.id)"
+                :aria-label="producedLabel(sku)"
                 @change="onStock(sku.id, $event)"
               />
               <span v-if="!isSkuSellable(sku)" class="muted no-price">
@@ -138,6 +144,7 @@ function sell(skuId: string) {
               min="0"
               step="1"
               :value="producedOf(sku.id)"
+              :aria-label="producedLabel(sku)"
               @change="onStock(sku.id, $event)"
             />
             <button

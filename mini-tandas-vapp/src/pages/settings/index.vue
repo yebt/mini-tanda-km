@@ -82,8 +82,8 @@ async function onImportFile(event: Event): Promise<void> {
       <p class="muted">Follows your system preference until you choose one.</p>
     </div>
 
-    <div class="field">
-      <label class="label">Data</label>
+    <div class="field" role="group" aria-labelledby="settings-data-label">
+      <span id="settings-data-label" class="label">Data</span>
       <div class="row">
         <button type="button" class="btn" @click="exportData">Export data (JSON)</button>
         <button type="button" class="btn" @click="importInput?.click()">Import data</button>
@@ -92,6 +92,8 @@ async function onImportFile(event: Event): Promise<void> {
           type="file"
           accept="application/json"
           class="visually-hidden"
+          aria-label="Backup file to import"
+          tabindex="-1"
           @change="onImportFile"
         />
       </div>

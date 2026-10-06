@@ -102,12 +102,18 @@ function submit() {
     </div>
 
     <div class="field">
-      <span class="label">Photo</span>
+      <label class="label" for="product-photo">Photo</label>
       <div v-if="photo" class="row photo-preview">
         <img :src="photo" alt="Product photo preview" />
         <button type="button" class="btn btn-ghost" @click="photo = null">Remove photo</button>
       </div>
-      <input type="file" accept="image/*" class="input" @change="onPhotoChange" />
+      <input
+        id="product-photo"
+        type="file"
+        accept="image/*"
+        class="input"
+        @change="onPhotoChange"
+      />
       <p v-if="photoError" class="error-text">{{ photoError }}</p>
     </div>
 

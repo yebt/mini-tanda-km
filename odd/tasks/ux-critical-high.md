@@ -23,7 +23,7 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 - [x] T3 UX-02 Dialog a11y: focus move, focus trap, Escape, focus restore, aria-labelledby/describedby (SaleDialog, ConfirmDialogHost).
 - [x] T4 UX-03 Combobox keyboard support: active option, aria-activedescendant/aria-controls, Arrow/Enter/Escape.
 - [x] T5 UX-04/05/07 Contrast + focus visibility: badge colors >= 4.5:1, input borders and focus ring >= 3:1, delivered toggle focus-visible.
-- [ ] T6 UX-06 Label every unlabeled control.
+- [x] T6 UX-06 Label every unlabeled control.
 
 ## Progress / evidence
 Commit hashes are recorded in the following task's commit (a commit cannot contain its own hash).
@@ -64,7 +64,15 @@ Commit hashes are recorded in the following task's commit (a commit cannot conta
   toggle track 1.32 → 3.87. (dark): info 4.06 → 4.91, warning 6.73, success 6.53, danger 5.15 (kept);
   control border 1.38 → 3.73 on surface, 1.59 → 4.30 on bg; focus ring ≈2.2 (50% alpha) → 4.72 surface / 5.44 bg.
   Guarded by `src/shared/assets/__tests__/contrast.spec.ts`. Checks: `bun run test:unit --run` 102/102 pass;
-  `bun run type-check` pass; `bun run lint` pass.
+  `bun run type-check` pass; `bun run lint` pass. Commit `3e8c045`.
+- T6 (no meaningful RED: markup-only names; covered by the InventoryEditor component test and e2e `getByLabel`).
+  `aria-label`s: tanda name/date (TandaHeader inline header), produced quantity "Produced — <product (option)>"
+  (InventoryEditor, table and mobile list), "Price for <combo>" (PriceTable), "New option for <variation>" /
+  "New variation name" (VariationEditor). Photo uses `<label for="product-photo">`; Settings "Data" is a
+  `role="group"` labelled by its heading, the hidden import input gets a name and `tabindex="-1"`.
+  E2E switched to `getByLabel` for price, produced, tanda name/date, new variation/option inputs.
+  Checks: `bun run test:unit --run` 102/102 pass; `bun run type-check` pass; `bun run lint` pass;
+  `bun run build-only` pass; `CI=1 bunx playwright test --retries=0 --project=chromium --project=firefox` 8/8 pass.
 
 ## Next step
-T6.
+Feature complete. Push / PR are the user's decision.
