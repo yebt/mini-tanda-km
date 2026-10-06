@@ -48,19 +48,41 @@ function mapProduct(row: ProductRow, variations: Variation[]): Product {
   }
 }
 
-function listVariations(productId: string): Variation[] {
+/**
+ * Variations with their options, grouped by product id. Two queries for any
+ * number of products (no per-product / per-variation round trips); pass a
+ * product id to load a single product.
+ */
+function loadVariations(productId?: string): Map<string, Variation[]> {
+  const filter = productId ? 'WHERE v.product_id = ?' : ''
+  const params = productId ? [productId] : []
   const variations = all<VariationRow>(
-    'SELECT id, product_id, name FROM variations WHERE product_id = ? ORDER BY position, name',
-    [productId],
+    `SELECT v.id, v.product_id, v.name FROM variations v ${filter} ORDER BY v.position, v.name`,
+    params,
   )
-  return variations.map((variation) => ({
-    id: variation.id,
-    name: variation.name,
-    options: all<OptionRow>(
-      'SELECT id, variation_id, label FROM variation_options WHERE variation_id = ? ORDER BY position, label',
-      [variation.id],
-    ).map((option) => ({ id: option.id, label: option.label })),
-  }))
+  const options = all<OptionRow>(
+    `SELECT o.id, o.variation_id, o.label FROM variation_options o
+     JOIN variations v ON v.id = o.variation_id ${filter}
+     ORDER BY o.position, o.label`,
+    params,
+  )
+  const optionsByVariation = new Map<string, Variation['options']>()
+  for (const option of options) {
+    const list = optionsByVariation.get(option.variation_id) ?? []
+    list.push({ id: option.id, label: option.label })
+    optionsByVariation.set(option.variation_id, list)
+  }
+  const byProduct = new Map<string, Variation[]>()
+  for (const variation of variations) {
+    const list = byProduct.get(variation.product_id) ?? []
+    list.push({
+      id: variation.id,
+      name: variation.name,
+      options: optionsByVariation.get(variation.id) ?? [],
+    })
+    byProduct.set(variation.product_id, list)
+  }
+  return byProduct
 }
 
 /**
@@ -74,12 +96,13 @@ export function listProducts(): Product[] {
   const rows = all<ProductRow>(
     `SELECT ${PRODUCT_COLUMNS} FROM products ORDER BY name COLLATE NOCASE`,
   )
-  return rows.map((row) => mapProduct(row, listVariations(row.id)))
+  const variations = loadVariations()
+  return rows.map((row) => mapProduct(row, variations.get(row.id) ?? []))
 }
 
 export function getProduct(id: string): Product | null {
   const row = get<ProductRow>(`SELECT ${PRODUCT_COLUMNS} FROM products WHERE id = ?`, [id])
-  return row ? mapProduct(row, listVariations(row.id)) : null
+  return row ? mapProduct(row, loadVariations(id).get(id) ?? []) : null
 }
 
 /** Full-size photo of a product (data URL), read only by the editor. */
@@ -429,9 +452,23 @@ export function resolvePrice(
   return row?.price ?? null
 }
 
-/** All SKUs joined with product name, label and effective price. */
-export function listSkusWithProducts(): SkuWithProduct[] {
-  const products = new Map(listProducts().map((product) => [product.id, product]))
+/** Product fields needed to label and price SKUs (no description/thumbnail). */
+function listPricingProducts(): Product[] {
+  const rows = all<Omit<ProductRow, 'description' | 'thumbnail'>>(
+    'SELECT id, name, price_mode, price, price_variation_ids FROM products',
+  )
+  const variations = loadVariations()
+  return rows.map((row) =>
+    mapProduct({ ...row, description: null, thumbnail: null }, variations.get(row.id) ?? []),
+  )
+}
+
+/**
+ * All SKUs joined with product name, label and effective price. Pass the
+ * already-loaded products (e.g. the store's list) to skip reading them again.
+ */
+export function listSkusWithProducts(loaded?: readonly Product[]): SkuWithProduct[] {
+  const products = new Map((loaded ?? listPricingProducts()).map((product) => [product.id, product]))
   const rowsByProduct = new Map<string, PriceRow[]>()
   for (const row of listPriceRows()) {
     const list = rowsByProduct.get(row.productId) ?? []

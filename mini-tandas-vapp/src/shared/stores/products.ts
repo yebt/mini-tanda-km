@@ -29,8 +29,8 @@ export const useProductsStore = defineStore('products', () => {
   })
 
   const skus = computed<SkuWithProduct[]>(() => {
-    void dbVersion.value
-    return listSkusWithProducts()
+    // Reuses the loaded products instead of querying them a second time.
+    return listSkusWithProducts(products.value)
   })
 
   const priceRows = computed<PriceRow[]>(() => {

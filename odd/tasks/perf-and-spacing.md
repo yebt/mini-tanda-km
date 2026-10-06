@@ -26,7 +26,7 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 
 ## Tasks
 - [x] T1 Photos out of list queries: explicit columns, `product_photos` table + thumbnail column (schema migration, async thumbnail backfill in the browser, export/import compatible).
-- [ ] T2 Query shape: `listSkusWithProducts` without calling `listProducts`; variations/options in batched queries.
+- [x] T2 Query shape: `listSkusWithProducts` without calling `listProducts`; variations/options in batched queries.
 - [ ] T3 Rendering: `ProductList` renders table or cards (not both); images `loading="lazy"` `decoding="async"` with fixed size.
 - [ ] T4 Invalidation: per-table/domain versions instead of one global `dbVersion`.
 - [ ] T5 Routes: lazy `ProductForm`; idle/hover prefetch of route chunks.
@@ -39,7 +39,8 @@ Baseline (2026-10-06, before T1, `perf/measure.mjs`, chromium 1280×800, 10 prod
 | no photos | 177 ms | [111] | 52 ms (60) |
 | photos (~365 KB each) | 291 ms | [175, 74] | 144 ms (154) |
 
-- T1 (inline route n/a — delegated writer): schema v4 `product_photos(product_id PK, data)` + `products.thumbnail`; list/detail queries use explicit columns; editor loads the full photo via `store.photoFor`; `ProductInput.photo` undefined keeps the stored photo; thumbnails (160px WebP/JPEG via canvas) generated on pick and backfilled on idle after startup (`features/products/lib/thumbnail.ts`); old backups with `products.photo` import into `product_photos`. RED observed: `photos.spec.ts` 7/7 failing before implementation. Checks: `bun run test:unit --run` 30 files / 161 tests pass; `bun run type-check` pass; `bun run lint` pass.
+- T1 (inline route n/a — delegated writer): schema v4 `product_photos(product_id PK, data)` + `products.thumbnail`; list/detail queries use explicit columns; editor loads the full photo via `store.photoFor`; `ProductInput.photo` undefined keeps the stored photo; thumbnails (160px WebP/JPEG via canvas) generated on pick and backfilled on idle after startup (`features/products/lib/thumbnail.ts`); old backups with `products.photo` import into `product_photos`. RED observed: `photos.spec.ts` 7/7 failing before implementation. Checks: `bun run test:unit --run` 30 files / 161 tests pass; `bun run type-check` pass; `bun run lint` pass. Commit `61129e1`.
+- T2: variations/options load with 2 queries for any number of products (`loadVariations`, grouped in JS); `listSkusWithProducts(loaded?)` reuses the store's products or reads a light product projection, never `listProducts`. RED observed: `query-shape.spec.ts` query-count tests failed (28 vs 10, 30 vs 12 statements); characterization tests (ordering, SKU labels/prices) passed before and after. Checks: unit 31 files / 165 tests pass; type-check pass; lint pass.
 
 ## Next step
-T2.
+T3.
