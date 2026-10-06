@@ -40,6 +40,37 @@ async function persistNow(): Promise<void> {
   await idbSet(DB_KEY, db.export())
 }
 
+/** Write pending changes now, cancelling the debounced save. */
+export function flushPersistence(): Promise<void> {
+  if (persistTimer !== undefined) {
+    clearTimeout(persistTimer)
+    persistTimer = undefined
+  }
+  return persistNow()
+}
+
+/**
+ * Flush pending changes whenever the page may be going away: hidden tab
+ * (mobile browsers often kill backgrounded pages without `beforeunload`),
+ * `pagehide` (bfcache / navigation) and `beforeunload`. Returns a cleanup
+ * function; a no-op outside the browser.
+ */
+export function registerPersistenceFlush(): () => void {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return () => {}
+  const flush = () => void flushPersistence()
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') flush()
+  }
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  window.addEventListener('pagehide', flush)
+  window.addEventListener('beforeunload', flush)
+  return () => {
+    document.removeEventListener('visibilitychange', onVisibilityChange)
+    window.removeEventListener('pagehide', flush)
+    window.removeEventListener('beforeunload', flush)
+  }
+}
+
 const SCHEMA = `
 PRAGMA foreign_keys = ON;
 
@@ -159,9 +190,7 @@ export async function initDatabase(): Promise<void> {
     persistQueued = true
     await persistNow()
   }
-  window.addEventListener('beforeunload', () => {
-    if (db && persistQueued) void idbSet(DB_KEY, db.export())
-  })
+  registerPersistenceFlush()
 }
 
 /** Adopt an existing Database instance (used by tests with an in-memory DB). */

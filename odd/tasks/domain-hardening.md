@@ -32,8 +32,8 @@ Branch `fix/domain-hardening`, one Conventional Commit per task. Strategy: ask-o
 ## Tasks
 - [x] T1 (3e7eb97) Pure domain module for tanda rules (`canSell`, `canDeliver`, `canEditInventory`, `canTransition`), enforced in repos and reused by components, with unit tests.
 - [x] T2 (05b64b7) Shared price+stock helper used by `createSale` and `updateSale` (remove duplication).
-- [x] T3 Harden `importAllData` (whitelist columns per table) + export/import round-trip test.
-- [ ] T4 Persistence flush on `visibilitychange`/`pagehide`.
+- [x] T3 (bba8581) Harden `importAllData` (whitelist columns per table) + export/import round-trip test.
+- [x] T4 Persistence flush on `visibilitychange`/`pagehide`.
 - [ ] T5 Money stored as integer cents (schema migration, formatting unchanged for the user) + tests.
 - [ ] T6 Split `SaleForm.vue` into a `useSaleDraft` composable; component/composable tests.
 - [ ] T7 Cleanup: move `shot-*.mjs` to `scripts/`, drop deprecated `Sku.price`, route settings export/import through a store.
@@ -62,5 +62,11 @@ Delegated direct (writer trigger: 2+ non-trivial files per task). RDD: off (glob
 - RED observed: malicious-column and invalid-row tests failed before the fix (round trip already passed).
 - Checks: `bun run test:unit --run`: 42 passed; `bun run type-check`: pass; `bun run lint`: pass.
 
+### T4 — persistence flush (done)
+- `database.ts`: `flushPersistence()` cancels the debounce and writes pending changes; `registerPersistenceFlush()` hooks `visibilitychange` (hidden only), `pagehide` and `beforeunload`, returns a cleanup, no-op without `window`/`document`. `initDatabase` uses it instead of the inline `beforeunload` handler.
+- Tests (`persistence.spec.ts`, `idb` mocked, `indexedDB` stubbed, fake timers): hidden flushes once and cancels the debounced write; visible does not flush; `pagehide`/`beforeunload` flush; nothing pending → no write.
+- RED observed: 4 failing (`registerPersistenceFlush is not a function`).
+- Checks: `bun run test:unit --run`: 46 passed; `bun run type-check`: pass; `bun run lint`: pass (after typing `vi.fn` per oxlint `require-mock-type-parameters`).
+
 ## Next step
-T4.
+T5.
