@@ -6,6 +6,7 @@ import type { ClientSummary } from '@shared/db/types'
 import { useClientsStore } from '@shared/stores/clients'
 import ActionMenu from '@shared/ui/ActionMenu.vue'
 import { confirmDialog } from '@shared/ui/useConfirm'
+import { notify } from '@shared/ui/useToast'
 
 const clientsStore = useClientsStore()
 
@@ -25,10 +26,12 @@ function submit(): void {
   const value = name.value.trim()
   if (value === '') {
     error.value = 'Name is required.'
+    focusNameInput()
     return
   }
   clientsStore.addClient(value)
   name.value = ''
+  notify(`Client "${value}" added.`)
 }
 
 function focusNameInput(): void {
@@ -41,7 +44,9 @@ async function remove(client: ClientSummary): Promise<void> {
     const result = clientsStore.removeClient(client.id)
     if (!result.ok) {
       actionError.value = result.error
+      return
     }
+    notify(`Client "${client.name}" deleted.`)
   }
 }
 </script>
@@ -58,12 +63,16 @@ async function remove(client: ClientSummary): Promise<void> {
           v-model="name"
           class="input"
           type="text"
-          placeholder="Client name"
+          name="client-name"
+          autocomplete="off"
+          placeholder="e.g. Ana López…"
+          :aria-invalid="error ? 'true' : undefined"
+          :aria-describedby="error ? 'client-name-error' : undefined"
         />
       </div>
       <button class="btn btn-primary new-client-button" type="submit">Add client</button>
     </form>
-    <p v-if="error" class="error-text">{{ error }}</p>
+    <p v-if="error" id="client-name-error" class="error-text" role="alert">{{ error }}</p>
   </section>
 
   <button class="fab mobile-only" aria-label="Add client" @click="focusNameInput">+</button>
@@ -116,7 +125,7 @@ async function remove(client: ClientSummary): Promise<void> {
         <ActionMenu :show-edit="false" @remove="remove(client)" />
       </li>
     </ul>
-    <p v-if="actionError" class="error-text">{{ actionError }}</p>
+    <p v-if="actionError" class="error-text" role="alert">{{ actionError }}</p>
   </section>
 </template>
 

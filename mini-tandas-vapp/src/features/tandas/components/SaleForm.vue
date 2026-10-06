@@ -8,6 +8,7 @@ import { useClientsStore } from '@shared/stores/clients'
 import { useProductsStore } from '@shared/stores/products'
 import { useTandasStore } from '@shared/stores/tandas'
 import Combobox, { type ComboOption } from '@shared/ui/Combobox.vue'
+import { notify } from '@shared/ui/useToast'
 
 import { useSaleDraft, type DraftLine } from '../composables/useSaleDraft'
 
@@ -66,8 +67,6 @@ const clientOptions = computed<ComboOption[]>(() =>
   clientsStore.clients.map((client) => ({ value: client.id, label: client.name })),
 )
 
-const canSubmit = computed(() => lines.value.length > 0 && clientChoice.value !== '')
-
 /** Focus the product search so the next product can be typed immediately. */
 function focusSkuSearch() {
   skuCombo.value?.focus()
@@ -121,6 +120,14 @@ function submit() {
     error.value = result.error
     return
   }
+  const clientName =
+    props.initialSale?.client.name ??
+    clientsStore.clients.find((client) => client.id === clientChoice.value)?.name
+  notify(
+    props.initialSale
+      ? `Sale for ${clientName} updated.`
+      : `Sale for ${clientName} added — ${formatMoney(runningTotal.value)}.`,
+  )
   resetForm()
   emit('submitted')
 }
@@ -265,12 +272,8 @@ function submit() {
         >
         <span class="money">{{ formatMoney(runningTotal) }}</span>
       </div>
-      <button
-        type="button"
-        class="btn btn-primary footer-submit"
-        :disabled="!canSubmit"
-        @click="submit"
-      >
+      <!-- Stays enabled: submitting explains what is missing (client, products). -->
+      <button type="button" class="btn btn-primary footer-submit" @click="submit">
         {{ isEdit ? 'Save changes' : 'Add sale' }}
       </button>
     </footer>

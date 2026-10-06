@@ -21,7 +21,7 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 ## Tasks
 - [x] T1 Navigation, IA & semantics: UX-10, UX-11, UX-12, UX-16, UX-26, UX-42, UX-45
 - [x] T2 Responsive, mobile & touch: UX-09, UX-13, UX-14, UX-15, UX-32, UX-33, UX-38, UX-39, UX-46
-- [ ] T3 Feedback, errors & forms: UX-19, UX-20, UX-21, UX-23, UX-31, UX-36, UX-37
+- [x] T3 Feedback, errors & forms: UX-19, UX-20, UX-21, UX-23, UX-31, UX-36, UX-37
 - [ ] T4 Dialogs, menus & destructive actions: UX-17, UX-18, UX-24, UX-27, UX-28, UX-43
 - [ ] T5 Content & consistency: UX-22, UX-25, UX-29, UX-34, UX-35, UX-40, UX-41, UX-44, UX-47
 - [ ] T6 Perceived performance: UX-30
@@ -41,7 +41,7 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 - Checks: `bun run test:unit --run` 15 files / 111 tests passed; `type-check` 0 errors; `lint` clean; e2e (chromium+firefox) 10/10 passed incl. new deep-link/tab/title test.
 
 
-### T2 — Responsive, mobile & touch (commit: next `fix(ux)` after 2065ae2)
+### T2 — Responsive, mobile & touch (commit 248d170)
 - UX-09: `--nav-bottom-height` in rem (grows with text size), nav uses `min-height`, labels 0.75rem and visually hidden via a container query when they no longer fit (names kept); tanda header inputs stack full-width on mobile; status actions wrap.
 - UX-13: `@media (pointer: coarse)` → 44px for buttons/inputs/selects, kebab, menu items, back button, dialog close, line steppers/remove, delivered toggle; option-chip × is ≥24px always and 44px hit area on touch (pseudo-element). Structural CSS check only (jsdom has no layout; Playwright desktop projects are fine pointers).
 - UX-14: `.app-main:has(.fab)` reserves nav + FAB + 24px (e2e asserts padding ≥ FAB reach).
@@ -55,5 +55,18 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 - e2e nav locators made exact (`'Products'` also matched "View products" — strict-mode failure seen once in Firefox).
 - Checks: unit 16 files / 113 tests passed; type-check 0 errors; lint clean; e2e chromium+firefox 12/12 passed.
 
+
+### T3 — Feedback, errors & forms (commit: next after 248d170)
+- UX-19: `useToast` + `ToastHost` (always-mounted `role="status" aria-live="polite"`, auto-dismiss 5 s / 8 s with an action). Toasts for client added/deleted, payment recorded/deleted, sale added/updated/deleted, tanda renamed/date set, product created/saved/deleted, price saved/cleared.
+- Decision (UX-19 Undo): Undo is offered for recording and deleting payments only (both reversible through existing repo calls). Sale deletion moves payments to general credit and is not cleanly reversible without a new repo operation, so it relies on the confirm (strengthened in T4).
+- UX-20: field errors get `id` + `aria-describedby` + `aria-invalid` and `role="alert"`; first invalid field is focused (payment amount, client name, product name/price/photo); delete failures (`actionError`/`removeError`) are `role="alert"`.
+- UX-21: one rule everywhere — a price is blank (none) or a number ≥ 0. PriceTable keeps invalid text and shows an inline error; repo `setPriceRow` stores 0 (only `null`/negative remove the row).
+- UX-23: disabled delivered toggle is described by a visible hint "Available once the tanda is ready".
+- UX-31: "Add sale" stays enabled; submitting shows the existing inline errors.
+- UX-36: placeholders follow "e.g. …" with an ellipsis; variation/option inputs get visible labels (aria-labels kept, they contain the visible text).
+- UX-37: money inputs are `type="text" inputmode="decimal"` parsed by `parseMoneyInput` (symbols, grouping, comma decimals); name/note inputs get `name` + `autocomplete="off"`.
+- RED observed: parseMoney (3), PriceTable (2), toast + PaymentForm (missing modules), SaleForms (2: button disabled, no hint) all failed before the change, pass after.
+- Checks: unit 21 files / 125 tests passed; type-check 0 errors; lint clean; e2e chromium+firefox 12/12 (added status-region assertion; e2e locators moved from old placeholders to labels).
+
 ## Next step
-T3.
+T4.

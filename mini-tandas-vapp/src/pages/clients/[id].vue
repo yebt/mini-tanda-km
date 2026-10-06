@@ -9,6 +9,7 @@ import PaymentList from '@/features/clients/components/PaymentList.vue'
 import { useClientsStore } from '@shared/stores/clients'
 import { confirmDialog } from '@shared/ui/useConfirm'
 import { usePageTitle } from '@shared/ui/usePageTitle'
+import { notify } from '@shared/ui/useToast'
 
 const route = useRoute('/clients/[id]')
 const router = useRouter()
@@ -30,6 +31,7 @@ async function remove(): Promise<void> {
       actionError.value = result.error
       return
     }
+    notify(`Client "${summary.value.name}" deleted.`)
     router.push('/clients')
   }
 }
@@ -41,7 +43,7 @@ async function remove(): Promise<void> {
   </p>
   <template v-else>
     <ClientSummaryCard :summary="summary" @remove="remove" />
-    <p v-if="actionError" class="error-text">{{ actionError }}</p>
+    <p v-if="actionError" class="error-text" role="alert">{{ actionError }}</p>
 
     <section class="card">
       <h2>Record payment</h2>

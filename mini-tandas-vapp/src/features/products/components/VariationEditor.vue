@@ -88,11 +88,15 @@ async function removeOption(variation: Variation, option: VariationOption) {
         <span v-if="variation.options.length === 0" class="muted">No options yet.</span>
       </div>
 
+      <label class="label" :for="`option-input-${variation.id}`">New option</label>
       <div class="row option-add">
         <input
+          :id="`option-input-${variation.id}`"
           type="text"
           class="input"
-          placeholder="New option, e.g. Coffee"
+          name="option-label"
+          autocomplete="off"
+          placeholder="e.g. Coffee…"
           :aria-label="`New option for ${variation.name}`"
           :value="draftFor(variation.id)"
           @input="setDraft(variation.id, $event)"
@@ -102,12 +106,16 @@ async function removeOption(variation: Variation, option: VariationOption) {
       </div>
     </div>
 
+    <label class="label" for="variation-name-input">New variation</label>
     <div class="row variation-add">
       <input
+        id="variation-name-input"
         v-model="newVariationName"
         type="text"
         class="input"
-        placeholder="New variation, e.g. SIZE"
+        name="variation-name"
+        autocomplete="off"
+        placeholder="e.g. SIZE…"
         aria-label="New variation name"
         @keydown.enter.prevent="addVariation"
       />

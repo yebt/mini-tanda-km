@@ -12,6 +12,7 @@ import { computed, nextTick, onBeforeUnmount, useTemplateRef } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import ConfirmDialogHost from '@shared/ui/ConfirmDialogHost.vue'
+import ToastHost from '@shared/ui/ToastHost.vue'
 
 import { isDetailPath, parentPath } from './router/navigation'
 
@@ -100,6 +101,7 @@ onBeforeUnmount(removeAfterEach)
   </nav>
 
   <ConfirmDialogHost />
+  <ToastHost />
 </template>
 
 <style scoped>

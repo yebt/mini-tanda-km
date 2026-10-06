@@ -18,7 +18,7 @@ test('full journey: product priced by one variation → client → scheduled tan
   const sizeEditor = page.locator('.card', { hasText: 'SIZE' }).last()
   await page.getByLabel('New option for SIZE').fill('Personal')
   await sizeEditor.getByRole('button', { name: 'Add option' }).click()
-  await sizeEditor.getByPlaceholder('New option, e.g. Coffee').fill('Family')
+  await sizeEditor.getByPlaceholder('e.g. Coffee…').fill('Family')
   await sizeEditor.getByRole('button', { name: 'Add option' }).click()
   await expect(page.getByRole('button', { name: 'Remove Personal' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Remove Family' })).toBeVisible()
@@ -32,8 +32,10 @@ test('full journey: product priced by one variation → client → scheduled tan
 
   // ── Client ─────────────────────────────────────────────────────────────
   await page.getByRole('link', { name: 'Clients', exact: true }).click()
-  await page.getByPlaceholder('Client name').fill('María')
+  await page.getByLabel('New client').fill('María')
   await page.getByRole('button', { name: 'Add client' }).click()
+  // The outcome is confirmed in a polite status region.
+  await expect(page.getByRole('status')).toContainText('Client "María" added.')
   await expect(page.getByText('María').first()).toBeVisible()
 
   // ── Scheduled tanda with a sale ────────────────────────────────────────
@@ -78,10 +80,10 @@ test('anticipated tanda: stock in open, sales open once ready', async ({ page })
   await page.getByRole('radio', { name: /Price per SKU/i }).check()
   await page.locator('button[type="submit"].btn-primary').click()
 
-  await page.getByPlaceholder('New variation, e.g. SIZE').fill('SIZE')
+  await page.getByLabel('New variation name').fill('SIZE')
   await page.getByRole('button', { name: 'Add variation' }).click()
   const sizeEditor = page.locator('.card', { hasText: 'SIZE' }).last()
-  await sizeEditor.getByPlaceholder('New option, e.g. Coffee').fill('Big')
+  await sizeEditor.getByPlaceholder('e.g. Coffee…').fill('Big')
   await sizeEditor.getByRole('button', { name: 'Add option' }).click()
   await page.getByRole('checkbox', { name: /SIZE/ }).check()
   const bigRow = page.locator('tr', { hasText: 'Big' })
@@ -90,7 +92,7 @@ test('anticipated tanda: stock in open, sales open once ready', async ({ page })
 
   // ── Client ─────────────────────────────────────────────────────────────
   await page.getByRole('link', { name: 'Clients', exact: true }).click()
-  await page.getByPlaceholder('Client name').fill('Ana')
+  await page.getByLabel('New client').fill('Ana')
   await page.getByRole('button', { name: 'Add client' }).click()
 
   // ── Anticipated tanda: no sales while open/production ──────────────────
@@ -145,7 +147,7 @@ test('product without variations: one global price, stocked and sold', async ({ 
   await page.locator('button[type="submit"].btn-primary').click()
 
   await page.getByRole('link', { name: 'Clients', exact: true }).click()
-  await page.getByPlaceholder('Client name').fill('Ana')
+  await page.getByLabel('New client').fill('Ana')
   await page.getByRole('button', { name: 'Add client' }).click()
 
   await page.getByRole('link', { name: 'Tandas', exact: true }).click()
@@ -213,7 +215,7 @@ test('mobile shell: bottom nav, back button and floating create button', async (
   }
 
   await bottomNav.getByRole('link', { name: /Clients/i }).click()
-  await page.getByPlaceholder('Client name').fill('Luna')
+  await page.getByLabel('New client').fill('Luna')
   await page.locator('form').getByRole('button', { name: 'Add client' }).click()
   await expect(page.locator('.client-item')).toBeVisible()
   await assertNoOverflow()

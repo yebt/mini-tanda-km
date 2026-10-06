@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, useId } from 'vue'
 import { useRouter } from 'vue-router'
 import { Truck } from 'lucide-vue-next'
 
@@ -9,6 +9,7 @@ import { canDeliver, canSell } from '@shared/domain/tanda'
 import { useTandasStore } from '@shared/stores/tandas'
 import ActionMenu from '@shared/ui/ActionMenu.vue'
 import { confirmDialog } from '@shared/ui/useConfirm'
+import { notify } from '@shared/ui/useToast'
 
 const props = defineProps<{
   tanda: Pick<Tanda, 'id' | 'type' | 'status'>
@@ -26,6 +27,7 @@ const router = useRouter()
 const sales = computed(() => tandasStore.salesFor(props.tanda.id))
 
 const canMarkDelivered = computed(() => canDeliver(props.tanda))
+const deliveryHintId = useId()
 /** Editing a sale is selling: only allowed while the tanda's sales window is open. */
 const canEditSales = computed(() => canSell(props.tanda))
 
@@ -43,6 +45,7 @@ function recordPayment(sale: SaleWithDetails) {
 async function remove(sale: SaleWithDetails) {
   if (await confirmDialog(`Delete the sale for ${sale.client.name}?`, 'Delete')) {
     tandasStore.removeSale(sale.id)
+    notify(`Sale for ${sale.client.name} deleted.`)
   }
 }
 </script>
@@ -85,6 +88,7 @@ async function remove(sale: SaleWithDetails) {
             class="delivered-input"
             :checked="sale.delivered"
             :disabled="!canMarkDelivered"
+            :aria-describedby="canMarkDelivered ? undefined : `${deliveryHintId}-${sale.id}`"
             @change="onDelivered(sale, $event)"
           />
           <span class="track" aria-hidden="true">
@@ -96,6 +100,9 @@ async function remove(sale: SaleWithDetails) {
             {{ sale.delivered ? 'Delivered' : 'Mark delivered' }}
           </span>
         </label>
+        <span v-if="!canMarkDelivered" :id="`${deliveryHintId}-${sale.id}`" class="delivery-hint">
+          Available once the tanda is ready
+        </span>
 
         <div class="sale-amounts">
           <span v-if="sale.balance > 0" class="badge badge-danger">
@@ -206,6 +213,13 @@ h2 {
 }
 
 /* ── Delivered toggle ─────────────────────────────────────────────────── */
+.delivery-hint {
+  flex-basis: 100%;
+  order: 1;
+  font-size: 0.8rem;
+  color: var(--color-ink-soft);
+}
+
 .delivered-toggle {
   display: inline-flex;
   align-items: center;

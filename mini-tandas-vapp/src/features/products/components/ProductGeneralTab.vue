@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, useTemplateRef, watch } from 'vue'
 
+import { parseMoneyInput } from '@shared/db/money'
 import { useProductsStore } from '@shared/stores/products'
 import type { PriceMode, Product } from '@shared/db/types'
+import { notify } from '@shared/ui/useToast'
 
 const props = defineProps<{
   /** The product being edited, or null when creating a new one. */
@@ -22,9 +24,13 @@ const name = ref('')
 const description = ref('')
 const photo = ref<string | null>(null)
 const priceMode = ref<PriceMode>('global')
-const price = ref<string | number>('')
-const formError = ref('')
+const price = ref('')
+/** Field-level errors, tied to their inputs with aria-describedby. */
+const nameError = ref('')
+const priceError = ref('')
 const photoError = ref('')
+const nameInput = useTemplateRef<HTMLInputElement>('nameInput')
+const priceInput = useTemplateRef<HTMLInputElement>('priceInput')
 
 watch(
   () => props.initial,
@@ -34,7 +40,8 @@ watch(
     photo.value = product?.photo ?? null
     priceMode.value = product?.priceMode ?? 'global'
     price.value = product?.price == null ? '' : String(product.price)
-    formError.value = ''
+    nameError.value = ''
+    priceError.value = ''
     photoError.value = ''
   },
   { immediate: true },
@@ -59,22 +66,22 @@ function onPhotoChange(event: Event) {
 
 function submit() {
   const trimmedName = name.value.trim()
-  if (!trimmedName) {
-    formError.value = 'Name is required.'
+  const parsedPrice = parseMoneyInput(price.value)
+  nameError.value = trimmedName ? '' : 'Name is required.'
+  priceError.value =
+    priceMode.value === 'global' && parsedPrice !== null && Number.isNaN(parsedPrice)
+      ? 'Enter a valid price (0 or more), or leave it empty.'
+      : ''
+  // Focus the first invalid field so the error is found and fixed in place.
+  if (nameError.value) {
+    nameInput.value?.focus()
     return
   }
-  // `v-model` on a number input may hand us a number already.
-  const rawPrice = typeof price.value === 'number' ? String(price.value) : price.value.trim()
-  const parsedPrice = rawPrice === '' ? null : Number(rawPrice)
-  if (
-    priceMode.value === 'global' &&
-    parsedPrice !== null &&
-    (!Number.isFinite(parsedPrice) || parsedPrice < 0)
-  ) {
-    formError.value = 'Enter a valid price (0 or more).'
+  if (priceError.value) {
+    priceInput.value?.focus()
     return
   }
-  formError.value = ''
+  const isNew = !props.initial
   // Keep sending only the general fields — omitting `priceVariationIds`
   // preserves the pricing subset chosen in the Variations & pricing tab.
   const id = store.saveProduct({
@@ -85,6 +92,7 @@ function submit() {
     priceMode: priceMode.value,
     price: priceMode.value === 'global' ? parsedPrice : null,
   })
+  notify(isNew ? `"${trimmedName}" created.` : `"${trimmedName}" saved.`)
   emit('saved', id)
 }
 </script>
@@ -93,7 +101,21 @@ function submit() {
   <form class="general-tab" @submit.prevent="submit">
     <div class="field">
       <label class="label" for="product-name">Name</label>
-      <input id="product-name" v-model="name" type="text" class="input" required />
+      <input
+        id="product-name"
+        ref="nameInput"
+        v-model="name"
+        type="text"
+        class="input"
+        name="product-name"
+        autocomplete="off"
+        aria-required="true"
+        :aria-invalid="nameError ? 'true' : undefined"
+        :aria-describedby="nameError ? 'product-name-error' : undefined"
+      />
+      <p v-if="nameError" id="product-name-error" class="error-text" role="alert">
+        {{ nameError }}
+      </p>
     </div>
 
     <div class="field">
@@ -112,9 +134,13 @@ function submit() {
         type="file"
         accept="image/*"
         class="input"
+        :aria-invalid="photoError ? 'true' : undefined"
+        :aria-describedby="photoError ? 'product-photo-error' : undefined"
         @change="onPhotoChange"
       />
-      <p v-if="photoError" class="error-text">{{ photoError }}</p>
+      <p v-if="photoError" id="product-photo-error" class="error-text" role="alert">
+        {{ photoError }}
+      </p>
     </div>
 
     <div class="field">
@@ -133,11 +159,23 @@ function submit() {
 
     <div v-if="priceMode === 'global'" class="field price-field">
       <label class="label" for="product-price">Price</label>
-      <input id="product-price" v-model="price" type="number" min="0" step="0.01" class="input" />
+      <input
+        id="product-price"
+        ref="priceInput"
+        v-model="price"
+        type="text"
+        inputmode="decimal"
+        autocomplete="off"
+        class="input"
+        placeholder="e.g. 120.00…"
+        :aria-invalid="priceError ? 'true' : undefined"
+        :aria-describedby="priceError ? 'product-price-error' : undefined"
+      />
+      <p v-if="priceError" id="product-price-error" class="error-text" role="alert">
+        {{ priceError }}
+      </p>
     </div>
     <p v-else class="muted">Prices are set per SKU once variations are added.</p>
-
-    <p v-if="formError" class="error-text">{{ formError }}</p>
 
     <div class="row form-actions">
       <button type="submit" class="btn btn-primary">

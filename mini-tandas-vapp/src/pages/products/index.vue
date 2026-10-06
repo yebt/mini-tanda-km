@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 
 import { confirmDialog } from '@shared/ui/useConfirm'
+import { notify } from '@shared/ui/useToast'
 import { useProductsStore } from '@shared/stores/products'
 import type { Product } from '@shared/db/types'
 
@@ -45,6 +46,7 @@ async function onRemove(product: Product) {
   if (!ok) return
   const result = store.removeProduct(product.id)
   removeError.value = result.ok ? '' : result.error
+  if (result.ok) notify(`"${product.name}" deleted.`)
   if (result.ok && editingId.value === product.id) {
     formOpen.value = false
     editingId.value = null
@@ -63,7 +65,7 @@ async function onRemove(product: Product) {
   <ProductForm v-if="formOpen" :initial="editingProduct" @saved="onSaved" @cancel="onCancel" />
 
   <template v-else>
-    <p v-if="removeError" class="error-text">{{ removeError }}</p>
+    <p v-if="removeError" class="error-text" role="alert">{{ removeError }}</p>
     <p v-if="store.catalog.length === 0" class="card empty-state">
       No products yet — create your first product.
     </p>

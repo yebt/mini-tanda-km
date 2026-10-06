@@ -23,3 +23,27 @@ export function toCentsOrNull(amount: number | null): number | null {
 export function fromCentsOrNull(cents: number | null): number | null {
   return cents === null ? null : fromCents(cents)
 }
+
+/**
+ * Parse a money amount typed by a person (Postel's law): blank → null,
+ * otherwise a non-negative number or NaN. Accepts a currency symbol or code,
+ * spaces, thousands separators and either "." or "," as the decimal mark
+ * ("1,234.50", "1.234,50", "12,5", "$ 90").
+ */
+export function parseMoneyInput(text: string): number | null {
+  let value = text.trim().replace(/^[A-Za-z]{1,3}(?=\$)/, '').replace(/[\s$€£]/g, '')
+  if (value === '') return null
+  const lastComma = value.lastIndexOf(',')
+  const lastDot = value.lastIndexOf('.')
+  if (lastComma >= 0 && lastDot >= 0) {
+    // Both present: whichever comes last is the decimal mark.
+    value =
+      lastComma > lastDot
+        ? value.replace(/\./g, '').replace(',', '.')
+        : value.replace(/,/g, '')
+  } else if (lastComma >= 0) {
+    // "12,5" / "12,50" is a decimal comma; "1,234" groups thousands.
+    value = /^\d+,\d{1,2}$/.test(value) ? value.replace(',', '.') : value.replace(/,/g, '')
+  }
+  return /^(\d+(\.\d*)?|\.\d+)$/.test(value) ? Number(value) : Number.NaN
+}

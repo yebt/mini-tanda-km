@@ -3,9 +3,11 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { formatMoney } from '@shared/db/format'
+import { parseMoneyInput } from '@shared/db/money'
 import { useClientsStore } from '@shared/stores/clients'
 import { useTandasStore } from '@shared/stores/tandas'
 import type { SaleWithDetails } from '@shared/db/types'
+import { notify } from '@shared/ui/useToast'
 
 const props = defineProps<{
   clientId: string
@@ -15,7 +17,7 @@ const route = useRoute()
 const clientsStore = useClientsStore()
 const tandasStore = useTandasStore()
 
-const amount = ref<number | null>(null)
+const amount = ref('')
 const amountInput = ref<HTMLInputElement | null>(null)
 const note = ref('')
 /** Pre-selected from ?pay=<saleId> when arriving via "Record payment" on a sale. */
@@ -44,25 +46,37 @@ function saleLabel(sale: SaleWithDetails): string {
   return `${prefix} — ${formatMoney(sale.balance)} pending`
 }
 
+function reject(message: string): void {
+  error.value = message
+  amountInput.value?.focus()
+}
+
 function submit(): void {
   error.value = ''
-  const value = amount.value
-  if (value === null || Number.isNaN(value)) {
-    error.value = 'Amount is required.'
+  const value = parseMoneyInput(amount.value)
+  if (value === null) {
+    reject('Amount is required.')
+    return
+  }
+  if (Number.isNaN(value)) {
+    reject('Enter an amount such as 150 or 150.50.')
     return
   }
   if (value <= 0) {
-    error.value = 'Amount must be greater than zero.'
+    reject('Amount must be greater than zero.')
     return
   }
-  clientsStore.pay({
+  const id = clientsStore.pay({
     clientId: props.clientId,
     saleId: targetSaleId.value === '' ? null : targetSaleId.value,
     amount: value,
     note: note.value.trim() === '' ? null : note.value.trim(),
   })
-  amount.value = null
+  amount.value = ''
   note.value = ''
+  notify(`Payment of ${formatMoney(value)} recorded.`, {
+    action: { label: 'Undo', run: () => clientsStore.removePayment(id) },
+  })
 }
 </script>
 
@@ -73,13 +87,17 @@ function submit(): void {
       <input
         id="payment-amount"
         ref="amountInput"
-        v-model.number="amount"
+        v-model="amount"
         class="input"
-        type="number"
-        min="0"
-        step="0.01"
-        placeholder="0.00"
+        type="text"
+        inputmode="decimal"
+        name="payment-amount"
+        autocomplete="off"
+        placeholder="e.g. 150.00…"
+        :aria-invalid="error ? 'true' : undefined"
+        :aria-describedby="error ? 'payment-amount-error' : undefined"
       />
+      <p v-if="error" id="payment-amount-error" class="error-text" role="alert">{{ error }}</p>
     </div>
     <div class="field">
       <label class="label" for="payment-target">Apply to</label>
@@ -97,10 +115,11 @@ function submit(): void {
         v-model="note"
         class="input"
         type="text"
-        placeholder="e.g. Cash, transfer"
+        name="payment-note"
+        autocomplete="off"
+        placeholder="e.g. Cash, transfer…"
       />
     </div>
-    <p v-if="error" class="error-text">{{ error }}</p>
     <button class="btn btn-primary" type="submit">Record payment</button>
   </form>
 </template>

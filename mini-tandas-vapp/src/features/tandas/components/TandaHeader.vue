@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue'
 import type { Tanda, TandaType } from '@shared/db/types'
 import { formatDate } from '@shared/db/format'
 import { useTandasStore } from '@shared/stores/tandas'
+import { notify } from '@shared/ui/useToast'
 
 const props = defineProps<{ tanda: Tanda }>()
 
@@ -37,6 +38,7 @@ function saveName() {
   const trimmed = name.value.trim()
   if (trimmed && trimmed !== props.tanda.name) {
     tandasStore.saveTanda(props.tanda.id, { name: trimmed })
+    notify(`Tanda renamed to "${trimmed}".`)
   } else {
     name.value = props.tanda.name
   }
@@ -45,6 +47,7 @@ function saveName() {
 function saveDate() {
   if (date.value && date.value !== props.tanda.date) {
     tandasStore.saveTanda(props.tanda.id, { date: date.value })
+    notify(`Tanda date set to ${formatDate(date.value)}.`)
   } else {
     date.value = props.tanda.date
   }
@@ -61,6 +64,8 @@ function saveDate() {
             <input
               v-model="name"
               class="input name-input"
+              name="tanda-name"
+              autocomplete="off"
               aria-label="Tanda name"
               @change="saveName"
             />

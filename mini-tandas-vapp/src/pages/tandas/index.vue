@@ -72,7 +72,14 @@ function submit() {
   <form v-if="showForm" class="card" @submit.prevent="submit">
     <div class="field">
       <label class="label" for="tanda-name">Name</label>
-      <input id="tanda-name" v-model="name" class="input" required />
+      <input
+        id="tanda-name"
+        v-model="name"
+        class="input"
+        name="tanda-name"
+        autocomplete="off"
+        required
+      />
     </div>
     <div class="field">
       <label class="label" for="tanda-date">Date</label>

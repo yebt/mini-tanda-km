@@ -283,7 +283,7 @@ export function listPriceRows(productId?: string): PriceRow[] {
   return rows.map(mapPriceRow)
 }
 
-/** Upsert a price for an option combination; `null` (or <= 0) removes the row. */
+/** Upsert a price for an option combination (0 is a valid price); `null` removes the row. */
 export function setPriceRow(productId: string, optionIds: string[], price: number | null): void {
   const key = priceKey(optionIds)
   const existing = get<PriceRowRow>(
@@ -291,7 +291,7 @@ export function setPriceRow(productId: string, optionIds: string[], price: numbe
     [productId, key],
   )
   const cents = price === null ? null : toCents(price)
-  if (cents === null || cents <= 0) {
+  if (cents === null || cents < 0) {
     if (existing) run('DELETE FROM sku_prices WHERE id = ?', [existing.id])
     return
   }

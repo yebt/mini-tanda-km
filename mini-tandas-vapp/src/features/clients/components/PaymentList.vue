@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { formatDateTime, formatMoney } from '@shared/db/format'
 import { useClientsStore } from '@shared/stores/clients'
 import { confirmDialog } from '@shared/ui/useConfirm'
+import { notify } from '@shared/ui/useToast'
 import type { PaymentWithContext } from '@shared/db/types'
 
 const props = defineProps<{
@@ -17,6 +18,19 @@ const payments = computed<PaymentWithContext[]>(() => clientsStore.paymentsFor(p
 async function remove(payment: PaymentWithContext): Promise<void> {
   if (await confirmDialog(`Delete payment of ${formatMoney(payment.amount)}?`, 'Delete')) {
     clientsStore.removePayment(payment.id)
+    notify(`Payment of ${formatMoney(payment.amount)} deleted.`, {
+      // Undo records it again with the same client, sale, amount and note.
+      action: {
+        label: 'Undo',
+        run: () =>
+          clientsStore.pay({
+            clientId: payment.clientId,
+            saleId: payment.saleId,
+            amount: payment.amount,
+            note: payment.note,
+          }),
+      },
+    })
   }
 }
 </script>
