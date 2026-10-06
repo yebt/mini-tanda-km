@@ -137,7 +137,7 @@ function onPay() {
 
 .menu-item:hover {
   background: var(--color-primary-soft);
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
 }
 
 .menu-item-danger {

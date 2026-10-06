@@ -15,7 +15,14 @@
   --color-danger-soft: #f7dedb;
   --color-on-primary: #ffffff;
   --color-primary-hover: #9c4719;
-  --color-focus-ring: #f6e4d7;
+  /* Text on the matching *-soft backgrounds (badges, highlighted rows): >= 4.5:1. */
+  --color-primary-ink: #9c4719;
+  --color-success-ink: #33693f;
+  --color-warning-ink: #7a5300;
+  /* Form control boundaries and toggle tracks: >= 3:1 against surface and bg. */
+  --color-control-border: #8e7f70;
+  /* Keyboard focus outline: >= 3:1 against surface and bg. */
+  --color-focus-ring: #b3541e;
   --radius: 10px;
   --radius-small: 6px;
   --shadow: 0 1px 2px rgb(43 33 24 / 6%), 0 4px 16px rgb(43 33 24 / 6%);
@@ -46,7 +53,11 @@ html[data-theme='dark'] {
   --color-danger-soft: #3a211d;
   --color-on-primary: #2b2118;
   --color-primary-hover: #e8803f;
-  --color-focus-ring: rgb(217 111 53 / 50%);
+  --color-primary-ink: #e8803f;
+  --color-success-ink: #84c491;
+  --color-warning-ink: #e2a93b;
+  --color-control-border: #8a7866;
+  --color-focus-ring: #d96f35;
   --shadow: 0 1px 2px rgb(20 10 5 / 45%), 0 4px 16px rgb(20 10 5 / 45%);
   --shadow-fab: 0 4px 14px rgb(20 10 5 / 55%);
 }
@@ -157,7 +168,7 @@ a {
 .textarea {
   width: 100%;
   padding: 0.45rem 0.6rem;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-control-border);
   border-radius: var(--radius-small);
   background: var(--color-surface);
   color: var(--color-ink);
@@ -168,6 +179,7 @@ a {
 .select:focus,
 .textarea:focus {
   outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
   border-color: var(--color-primary);
 }
 
@@ -198,12 +210,12 @@ a {
 
 .badge-neutral {
   background: var(--color-warning-soft);
-  color: var(--color-warning);
+  color: var(--color-warning-ink);
 }
 
 .badge-success {
   background: var(--color-success-soft);
-  color: var(--color-success);
+  color: var(--color-success-ink);
 }
 
 .badge-danger {
@@ -213,7 +225,7 @@ a {
 
 .badge-info {
   background: var(--color-primary-soft);
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
 }
 
 .row {

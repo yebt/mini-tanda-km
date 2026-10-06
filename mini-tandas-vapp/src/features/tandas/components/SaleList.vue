@@ -228,8 +228,14 @@ h2 {
   height: 24px;
   padding: 2px;
   border-radius: 999px;
-  background: var(--color-border);
+  background: var(--color-control-border);
   transition: background-color 160ms ease;
+}
+
+/* The native checkbox is visually hidden: show its keyboard focus on the track. */
+.delivered-input:focus-visible + .track {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 .thumb {

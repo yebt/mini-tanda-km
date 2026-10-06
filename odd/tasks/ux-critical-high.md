@@ -22,7 +22,7 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 - [x] T2 UX-08 Inventory: unpriced SKUs cannot be stocked/sold (domain rule reused by UI and repo); tests.
 - [x] T3 UX-02 Dialog a11y: focus move, focus trap, Escape, focus restore, aria-labelledby/describedby (SaleDialog, ConfirmDialogHost).
 - [x] T4 UX-03 Combobox keyboard support: active option, aria-activedescendant/aria-controls, Arrow/Enter/Escape.
-- [ ] T5 UX-04/05/07 Contrast + focus visibility: badge colors >= 4.5:1, input borders and focus ring >= 3:1, delivered toggle focus-visible.
+- [x] T5 UX-04/05/07 Contrast + focus visibility: badge colors >= 4.5:1, input borders and focus ring >= 3:1, delivered toggle focus-visible.
 - [ ] T6 UX-06 Label every unlabeled control.
 
 ## Progress / evidence
@@ -52,7 +52,19 @@ Commit hashes are recorded in the following task's commit (a commit cannot conta
   "Enter adds a line" needs a second Enter), Escape closes the list and marks the event handled only while open
   (so the dialog ignores it). Options keep focus in the input (`mousedown.prevent`); Teleport kept. Home/End not
   added (caret keys in a text input). Checks: `bun run test:unit --run` 86/86 pass; `bun run type-check` pass;
-  `bun run lint` pass.
+  `bun run lint` pass. Commit `eed741c`.
+- T5 (RED observed: 12/16 token contrast tests failed before the token change). New tokens in `main.css`
+  (light / dark): `--color-primary-ink` #9c4719 / #e8803f, `--color-success-ink` #33693f / #84c491,
+  `--color-warning-ink` #7a5300 / #e2a93b, `--color-control-border` #8e7f70 / #8a7866; `--color-focus-ring`
+  #f6e4d7 → #b3541e / 50% #d96f35 → #d96f35, with `outline-offset: 2px`. Badges, combobox active/selected rows and
+  menu-item hover use the ink tokens; inputs/selects/textareas and the delivered toggle off-track use
+  `--color-control-border`; `.delivered-input:focus-visible + .track` outline added.
+  Ratios before → after (light): info 4.04 → 5.11, neutral 3.83 → 5.85, success 4.34 → 5.47, danger 4.69 (kept);
+  control border 1.32 → 3.87 on surface, 1.23 → 3.60 on bg; focus ring 1.24 → 5.00 on surface, 4.64 on bg;
+  toggle track 1.32 → 3.87. (dark): info 4.06 → 4.91, warning 6.73, success 6.53, danger 5.15 (kept);
+  control border 1.38 → 3.73 on surface, 1.59 → 4.30 on bg; focus ring ≈2.2 (50% alpha) → 4.72 surface / 5.44 bg.
+  Guarded by `src/shared/assets/__tests__/contrast.spec.ts`. Checks: `bun run test:unit --run` 102/102 pass;
+  `bun run type-check` pass; `bun run lint` pass.
 
 ## Next step
-T5.
+T6.

@@ -342,7 +342,7 @@ defineExpose({ clear, focus })
 .combo-option.is-selected,
 .combo-option.is-active {
   background: var(--color-primary-soft);
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
 }
 
 /* The keyboard-highlighted row also gets a ring, distinct from hover/selection. */
