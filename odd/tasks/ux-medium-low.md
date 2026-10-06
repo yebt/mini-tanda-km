@@ -96,7 +96,7 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 - Checks: unit 30 files / 147 tests passed; type-check 0 errors; lint clean; e2e chromium+firefox 12/12 (Clients FAB focus assertion added).
 
 
-### T6 — Perceived performance (commit: next after 9f2140b)
+### T6 — Perceived performance (commit 3f5ec46; remediation table in `docs/UX-AUDIT.md` §7: 3ffa58f)
 - UX-30: `index.html` ships a static splash inside `#app` (`role="status"`, "Loading Mini Tanda…", spinner that honors reduced motion, token colors with OS-theme fallbacks) that Vue replaces on mount. `bootstrap()` failures render `renderBootError` (`src/core/bootError.ts`): `role="alert"` panel with a heading, likely causes (private window, full storage, blocked site data), steps incl. Export/Reset guidance, technical detail and a focused Reload button.
 - Decision: no in-page "Reset data" button (it would delete everything with no way back); reset is explained as guidance only.
 - RED observed: `bootError.spec.ts` failed (missing module) before. New e2e aborts the `.wasm` request and asserts the error screen.
