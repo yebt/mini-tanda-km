@@ -217,6 +217,12 @@ h2 {
   user-select: none;
 }
 
+@media (pointer: coarse) {
+  .delivered-toggle {
+    min-height: 44px;
+  }
+}
+
 .delivered-input {
   position: absolute;
   opacity: 0;

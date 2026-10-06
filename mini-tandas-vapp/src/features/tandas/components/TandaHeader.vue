@@ -120,5 +120,19 @@ h1 {
     font-size: 1.3rem;
     flex-basis: 100%;
   }
+
+  /* Stack the name above the date so neither is truncated (or overflows at large text). */
+  .name-heading {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+
+  .date-input {
+    max-width: none;
+  }
+
+  .header-edit > * {
+    flex: 1 1 100%;
+  }
 }
 </style>

@@ -436,6 +436,18 @@ h2 {
   color: var(--color-danger);
 }
 
+@media (pointer: coarse) {
+  .stepper-sm .stepper-btn,
+  .line-remove {
+    width: 44px;
+    min-height: 44px;
+  }
+
+  .line-remove {
+    height: 44px;
+  }
+}
+
 .lines-empty {
   margin: var(--space-2) 0;
 }

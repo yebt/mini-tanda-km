@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { formatDate, formatMoney, todayISO } from '@shared/db/format'
 import type { TandaStatus, TandaType } from '@shared/db/types'
 import { useTandasStore } from '@shared/stores/tandas'
 
+const route = useRoute()
 const router = useRouter()
 const tandasStore = useTandasStore()
 
@@ -39,6 +40,13 @@ function openForm() {
   type.value = 'scheduled'
   showForm.value = true
 }
+
+// "New tanda" elsewhere (dashboard) links here with ?new=1: open the form directly.
+onMounted(() => {
+  if (route.query.new === undefined) return
+  openForm()
+  void router.replace({ query: { ...route.query, new: undefined } })
+})
 
 function submit() {
   const trimmed = name.value.trim()

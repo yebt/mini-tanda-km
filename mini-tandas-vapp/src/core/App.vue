@@ -94,8 +94,8 @@ onBeforeUnmount(removeAfterEach)
 
   <nav class="bottom-nav mobile-only" aria-label="Main navigation">
     <RouterLink v-for="item in navItems" :key="item.to" :to="item.to" class="bottom-nav-link">
-      <component :is="item.icon" :size="22" :stroke-width="1.8" />
-      <span>{{ item.label }}</span>
+      <component :is="item.icon" :size="22" :stroke-width="1.8" aria-hidden="true" />
+      <span class="bottom-nav-label">{{ item.label }}</span>
     </RouterLink>
   </nav>
 
@@ -135,6 +135,9 @@ onBeforeUnmount(removeAfterEach)
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin-left: calc(-1 * var(--space-2));
   padding: var(--space-1);
   border: none;
   background: transparent;
@@ -173,7 +176,8 @@ onBeforeUnmount(removeAfterEach)
   bottom: 0;
   left: 0;
   right: 0;
-  height: var(--nav-bottom-height);
+  min-height: var(--nav-bottom-height);
+  padding-bottom: var(--safe-bottom);
   display: flex;
   align-items: stretch;
   background: var(--color-surface);
@@ -183,14 +187,37 @@ onBeforeUnmount(removeAfterEach)
 
 .bottom-nav-link {
   flex: 1;
+  min-width: 0;
+  min-height: var(--nav-bottom-height);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
-  font-size: 0.68rem;
+  padding: var(--space-1) 2px;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--color-ink-soft);
+  container-type: inline-size;
+}
+
+.bottom-nav-label {
+  max-width: 100%;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* Large text: when a label no longer fits its slot, keep it for screen
+   readers only instead of clipping it ("Set…"); the icon stays. */
+@container (max-width: 5em) {
+  .bottom-nav-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
 }
 
 .bottom-nav-link.router-link-active {
@@ -203,7 +230,14 @@ onBeforeUnmount(removeAfterEach)
   }
 
   .app-main {
-    padding-bottom: calc(var(--nav-bottom-height) + var(--space-4));
+    padding-bottom: calc(var(--nav-bottom-height) + var(--safe-bottom) + var(--space-4));
+  }
+
+  /* Pages with a FAB: leave room so it never covers the last row. */
+  .app-main:has(.fab) {
+    padding-bottom: calc(
+      var(--nav-bottom-height) + var(--safe-bottom) + var(--fab-size) + var(--space-6)
+    );
   }
 }
 </style>

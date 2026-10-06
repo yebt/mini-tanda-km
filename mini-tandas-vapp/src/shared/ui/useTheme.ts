@@ -7,8 +7,15 @@ const STORAGE_KEY = 'mini-tanda-theme'
 /** Reactive active theme. Mirrors `data-theme` on <html>. */
 export const theme = shallowRef<Theme>('light')
 
+/** Browser chrome color per theme: matches `--color-surface` (the app header). */
+export const THEME_COLORS: Record<Theme, string> = {
+  light: '#ffffff',
+  dark: '#2a211a',
+}
+
 function applyTheme(value: Theme): void {
   document.documentElement.dataset.theme = value
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLORS[value])
 }
 
 function resolveInitialTheme(): Theme {

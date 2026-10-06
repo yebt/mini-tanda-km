@@ -6,7 +6,7 @@ test('full journey: product priced by one variation → client → scheduled tan
   await page.goto('/')
 
   // ── Product priced by SIZE only ────────────────────────────────────────
-  await page.getByRole('link', { name: 'Products' }).click()
+  await page.getByRole('link', { name: 'Products', exact: true }).click()
   await page.getByRole('button', { name: 'New product' }).click()
   await page.locator('#product-name').fill('Cake')
   await page.getByRole('radio', { name: /Price per SKU/i }).check()
@@ -31,13 +31,13 @@ test('full journey: product priced by one variation → client → scheduled tan
   await expect(personalRow.locator('.no-price')).toHaveCount(0)
 
   // ── Client ─────────────────────────────────────────────────────────────
-  await page.getByRole('link', { name: 'Clients' }).click()
+  await page.getByRole('link', { name: 'Clients', exact: true }).click()
   await page.getByPlaceholder('Client name').fill('María')
   await page.getByRole('button', { name: 'Add client' }).click()
   await expect(page.getByText('María').first()).toBeVisible()
 
   // ── Scheduled tanda with a sale ────────────────────────────────────────
-  await page.getByRole('link', { name: 'Tandas' }).click()
+  await page.getByRole('link', { name: 'Tandas', exact: true }).click()
   await page.getByRole('button', { name: 'New tanda' }).click()
   await expect(page.locator('#tanda-name')).toHaveValue(/^Tanda /)
   await page.getByRole('button', { name: 'Create tanda' }).click()
@@ -72,7 +72,7 @@ test('anticipated tanda: stock in open, sales open once ready', async ({ page })
   await page.goto('/')
 
   // ── Priced product ─────────────────────────────────────────────────────
-  await page.getByRole('link', { name: 'Products' }).click()
+  await page.getByRole('link', { name: 'Products', exact: true }).click()
   await page.getByRole('button', { name: 'New product' }).click()
   await page.locator('#product-name').fill('Cookie')
   await page.getByRole('radio', { name: /Price per SKU/i }).check()
@@ -89,12 +89,12 @@ test('anticipated tanda: stock in open, sales open once ready', async ({ page })
   await bigRow.locator('input.price-input').press('Tab')
 
   // ── Client ─────────────────────────────────────────────────────────────
-  await page.getByRole('link', { name: 'Clients' }).click()
+  await page.getByRole('link', { name: 'Clients', exact: true }).click()
   await page.getByPlaceholder('Client name').fill('Ana')
   await page.getByRole('button', { name: 'Add client' }).click()
 
   // ── Anticipated tanda: no sales while open/production ──────────────────
-  await page.getByRole('link', { name: 'Tandas' }).click()
+  await page.getByRole('link', { name: 'Tandas', exact: true }).click()
   await page.getByRole('button', { name: 'New tanda' }).click()
   await page.locator('#tanda-type').selectOption('anticipated')
   await page.getByRole('button', { name: 'Create tanda' }).click()
@@ -138,17 +138,17 @@ test('anticipated tanda: stock in open, sales open once ready', async ({ page })
 test('product without variations: one global price, stocked and sold', async ({ page }) => {
   await page.goto('/')
 
-  await page.getByRole('link', { name: 'Products' }).click()
+  await page.getByRole('link', { name: 'Products', exact: true }).click()
   await page.getByRole('button', { name: 'New product' }).click()
   await page.locator('#product-name').fill('Cookies box')
   await page.locator('#product-price').fill('120')
   await page.locator('button[type="submit"].btn-primary').click()
 
-  await page.getByRole('link', { name: 'Clients' }).click()
+  await page.getByRole('link', { name: 'Clients', exact: true }).click()
   await page.getByPlaceholder('Client name').fill('Ana')
   await page.getByRole('button', { name: 'Add client' }).click()
 
-  await page.getByRole('link', { name: 'Tandas' }).click()
+  await page.getByRole('link', { name: 'Tandas', exact: true }).click()
   await page.getByRole('button', { name: 'New tanda' }).click()
   await page.locator('#tanda-type').selectOption('anticipated')
   await page.getByRole('button', { name: 'Create tanda' }).click()
@@ -238,7 +238,7 @@ test('tanda detail: titled, tab kept in the URL, back works from a deep link', a
   await page.keyboard.press('Tab')
   await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused()
 
-  await page.getByRole('link', { name: 'Tandas' }).first().click()
+  await page.getByRole('link', { name: 'Tandas', exact: true }).click()
   await page.getByRole('button', { name: 'New tanda' }).click()
   await page.locator('#tanda-name').fill('Weekend cakes')
   await page.locator('#tanda-type').selectOption('anticipated')
@@ -271,4 +271,39 @@ test('tanda detail: titled, tab kept in the URL, back works from a deep link', a
   await page.goto(page.url())
   await page.locator('.back-btn').click()
   await expect(page).toHaveURL(/\/tandas$/)
+})
+
+test('mobile: New tanda opens the form, one New sale, large text reflows, FAB leaves room', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+
+  // Dashboard "New tanda" lands on the open creation form.
+  await page.getByRole('link', { name: 'New tanda' }).click()
+  await expect(page.locator('#tanda-name')).toBeVisible()
+  await expect(page).toHaveURL(/\/tandas$/)
+  await page.getByRole('button', { name: 'Create tanda' }).click()
+
+  // Only the FAB offers "New sale" on mobile.
+  await expect(page.getByRole('button', { name: 'Advance to production' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'New sale' })).toHaveCount(1)
+
+  // The FAB never covers content: main reserves room below the last row.
+  const room = await page.evaluate(() => {
+    const fab = document.querySelector('.fab')!.getBoundingClientRect()
+    const padding = parseFloat(getComputedStyle(document.querySelector('main')!).paddingBottom)
+    return { fabReach: window.innerHeight - fab.top, padding }
+  })
+  expect(room.padding).toBeGreaterThanOrEqual(room.fabReach)
+
+  // 200% text: no horizontal scroll, nav links keep their names.
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = '200%'
+  })
+  const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth)
+  expect(scrollWidth).toBeLessThanOrEqual(390)
+  await expect(
+    page.locator('.bottom-nav').getByRole('link', { name: 'Settings' }),
+  ).toBeVisible()
 })

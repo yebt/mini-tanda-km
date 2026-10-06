@@ -59,7 +59,7 @@ watch(
 .confirm-overlay {
   position: fixed;
   inset: 0;
-  background: rgb(43 33 24 / 45%);
+  background: var(--color-scrim);
   display: flex;
   align-items: center;
   justify-content: center;

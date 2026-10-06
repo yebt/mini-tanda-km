@@ -59,11 +59,11 @@ async function goBack() {
 <template>
   <section class="card">
     <div class="row-between status-row">
-      <div class="row">
+      <div class="row status-info">
         <span class="badge" :class="statusBadgeClass">{{ tanda.status }}</span>
         <p class="caption">{{ caption }}</p>
       </div>
-      <div class="row">
+      <div class="row status-actions">
         <button v-if="previousStatus" class="btn btn-ghost" @click="goBack">
           ← Back to {{ previousStatus }}
         </button>
@@ -81,9 +81,34 @@ async function goBack() {
   flex-wrap: wrap;
 }
 
+.status-info {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.status-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .caption {
   margin: 0;
+  min-width: 0;
   color: var(--color-ink-soft);
   font-size: 0.85rem;
+}
+
+/* Narrow screens: actions take their own full-width row and may wrap. */
+@media (max-width: 720px) {
+  .status-actions {
+    flex: 1 1 100%;
+  }
+
+  .status-actions .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+    white-space: normal;
+    text-align: center;
+  }
 }
 </style>

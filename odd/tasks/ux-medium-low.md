@@ -20,7 +20,7 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 
 ## Tasks
 - [x] T1 Navigation, IA & semantics: UX-10, UX-11, UX-12, UX-16, UX-26, UX-42, UX-45
-- [ ] T2 Responsive, mobile & touch: UX-09, UX-13, UX-14, UX-15, UX-32, UX-33, UX-38, UX-39, UX-46
+- [x] T2 Responsive, mobile & touch: UX-09, UX-13, UX-14, UX-15, UX-32, UX-33, UX-38, UX-39, UX-46
 - [ ] T3 Feedback, errors & forms: UX-19, UX-20, UX-21, UX-23, UX-31, UX-36, UX-37
 - [ ] T4 Dialogs, menus & destructive actions: UX-17, UX-18, UX-24, UX-27, UX-28, UX-43
 - [ ] T5 Content & consistency: UX-22, UX-25, UX-29, UX-34, UX-35, UX-40, UX-41, UX-44, UX-47
@@ -28,7 +28,7 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 
 ## Progress / evidence
 
-### T1 — Navigation, IA & semantics (commit: see git log `fix(ux): navigation`)
+### T1 — Navigation, IA & semantics (commit 2065ae2)
 - UX-10: `router.afterEach` sets "<Section> · Mini Tanda"; `usePageTitle` (shared/ui) refines detail views ("Weekend cakes · Tandas · Mini Tanda", client name).
 - UX-11: dashboard `<h1>Dashboard</h1>`, stat labels are `<h2>`, values `<p>`; open tanda wraps the name input in the `<h1>` (its value names the heading).
 - UX-12: "Skip to content" link → `<main id="main" tabindex="-1">`; after a path change focus moves to the view's `<h1>` (query-only changes skipped).
@@ -40,5 +40,20 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 - RED observed: `src/pages/__tests__/dashboard.spec.ts` 2/2 failed on the original `pages/index.vue`, passed after. `TabList.spec.ts` failed (missing module) before the component existed.
 - Checks: `bun run test:unit --run` 15 files / 111 tests passed; `type-check` 0 errors; `lint` clean; e2e (chromium+firefox) 10/10 passed incl. new deep-link/tab/title test.
 
+
+### T2 — Responsive, mobile & touch (commit: next `fix(ux)` after 2065ae2)
+- UX-09: `--nav-bottom-height` in rem (grows with text size), nav uses `min-height`, labels 0.75rem and visually hidden via a container query when they no longer fit (names kept); tanda header inputs stack full-width on mobile; status actions wrap.
+- UX-13: `@media (pointer: coarse)` → 44px for buttons/inputs/selects, kebab, menu items, back button, dialog close, line steppers/remove, delivered toggle; option-chip × is ≥24px always and 44px hit area on touch (pseudo-element). Structural CSS check only (jsdom has no layout; Playwright desktop projects are fine pointers).
+- UX-14: `.app-main:has(.fab)` reserves nav + FAB + 24px (e2e asserts padding ≥ FAB reach).
+- UX-15: tanda `.sales-toolbar` is desktop-only; dashboard "New tanda" → `/tandas?new=1`, which opens the form and strips the query.
+- UX-32: StatusFlow actions get their own wrapping full-width row on mobile.
+- UX-33: "Next up" first in DOM (keeps focus order = visual order, all sizes — decision); stats are a compact 3-column row on mobile without per-card links (bottom nav covers them).
+- UX-38: `<meta name="theme-color">` kept in sync by `applyTheme`; `--color-scrim` and `--shadow-hover` tokens replace hard-coded values.
+- UX-39: `viewport-fit=cover`; nav, sheet and FAB add `env(safe-area-inset-bottom)`.
+- UX-46: tanda name stacks above the date on mobile.
+- RED observed: `useTheme.spec.ts` failed (`'#ffffff'` vs `'#2a211a'`) against the original `useTheme.ts`, passed after.
+- e2e nav locators made exact (`'Products'` also matched "View products" — strict-mode failure seen once in Firefox).
+- Checks: unit 16 files / 113 tests passed; type-check 0 errors; lint clean; e2e chromium+firefox 12/12 passed.
+
 ## Next step
-T2.
+T3.

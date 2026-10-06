@@ -16,32 +16,13 @@ const nextActions = computed(() => tandasStore.activeTandas.slice(0, 5))
 <template>
   <h1 class="page-title">Dashboard</h1>
 
-  <div class="row-wrap dashboard-cards">
-    <section class="card stat-card">
-      <h2 class="stat-label">Active tandas</h2>
-      <p class="stat-value">{{ tandasStore.activeTandas.length }}</p>
-      <RouterLink to="/tandas" class="btn btn-ghost">View tandas</RouterLink>
-    </section>
-
-    <section class="card stat-card">
-      <h2 class="stat-label">Owed by clients</h2>
-      <p class="stat-value money" :class="{ 'money-negative': clientsStore.totalOwed > 0 }">
-        {{ formatMoney(clientsStore.totalOwed) }}
-      </p>
-      <RouterLink to="/clients" class="btn btn-ghost">View clients</RouterLink>
-    </section>
-
-    <section class="card stat-card">
-      <h2 class="stat-label">Products</h2>
-      <p class="stat-value">{{ productsStore.products.length }}</p>
-      <RouterLink to="/products" class="btn btn-ghost">View products</RouterLink>
-    </section>
-  </div>
-
-  <section class="card">
+  <!-- "Next up" (the actionable item) comes first, ahead of the summary figures. -->
+  <section class="card next-up">
     <div class="row-between">
       <h2>Next up</h2>
-      <RouterLink to="/tandas" class="btn btn-primary">New tanda</RouterLink>
+      <RouterLink :to="{ path: '/tandas', query: { new: '1' } }" class="btn btn-primary">
+        New tanda
+      </RouterLink>
     </div>
     <p v-if="nextActions.length === 0" class="empty-state">
       No active tandas. Create one to start taking orders.
@@ -64,11 +45,60 @@ const nextActions = computed(() => tandasStore.activeTandas.slice(0, 5))
       </li>
     </ul>
   </section>
+
+  <div class="row-wrap dashboard-cards">
+    <section class="card stat-card">
+      <h2 class="stat-label">Active tandas</h2>
+      <p class="stat-value">{{ tandasStore.activeTandas.length }}</p>
+      <RouterLink to="/tandas" class="btn btn-ghost">View tandas</RouterLink>
+    </section>
+
+    <section class="card stat-card">
+      <h2 class="stat-label">Owed by clients</h2>
+      <p class="stat-value money" :class="{ 'money-negative': clientsStore.totalOwed > 0 }">
+        {{ formatMoney(clientsStore.totalOwed) }}
+      </p>
+      <RouterLink to="/clients" class="btn btn-ghost">View clients</RouterLink>
+    </section>
+
+    <section class="card stat-card">
+      <h2 class="stat-label">Products</h2>
+      <p class="stat-value">{{ productsStore.products.length }}</p>
+      <RouterLink to="/products" class="btn btn-ghost">View products</RouterLink>
+    </section>
+  </div>
 </template>
 
 <style scoped>
 .dashboard-cards {
   margin-bottom: var(--space-4);
+}
+
+/* Mobile: the three figures share one compact row; the bottom nav already
+   links to each section, so the per-card links are dropped. */
+@media (max-width: 720px) {
+  .dashboard-cards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .stat-card {
+    padding: var(--space-3) var(--space-2);
+  }
+
+  .stat-value {
+    font-size: 1.15rem;
+    overflow-wrap: anywhere;
+  }
+
+  .stat-label {
+    margin-bottom: 0;
+    font-size: 0.78rem;
+  }
+
+  .stat-card .btn {
+    display: none;
+  }
 }
 
 .page-title {

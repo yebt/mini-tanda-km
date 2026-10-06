@@ -99,7 +99,7 @@ function closeSaleDialog() {
       :role="hasTabs ? 'tabpanel' : undefined"
       :aria-labelledby="hasTabs ? tabId('tanda', 'sales') : undefined"
     >
-      <div class="sales-toolbar">
+      <div class="sales-toolbar desktop-only">
         <button v-if="canSell" type="button" class="btn btn-primary" @click="openSaleDialog()">
           New sale
         </button>

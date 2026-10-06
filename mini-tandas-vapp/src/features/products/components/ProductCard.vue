@@ -253,9 +253,7 @@ const variationBadges = computed(() =>
   .product-card:hover,
   .product-card:focus-within {
     border-color: var(--color-primary);
-    box-shadow:
-      0 2px 4px rgb(43 33 24 / 8%),
-      0 10px 24px rgb(43 33 24 / 10%);
+    box-shadow: var(--shadow-hover);
   }
 }
 

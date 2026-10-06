@@ -87,6 +87,8 @@ function onPay() {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
   border: none;
   background: transparent;
   color: var(--color-ink-soft);
@@ -99,6 +101,17 @@ function onPay() {
 .kebab[aria-expanded='true'] {
   color: var(--color-primary);
   background: var(--color-primary-soft);
+}
+
+@media (pointer: coarse) {
+  .kebab {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .menu-item {
+    min-height: 44px;
+  }
 }
 
 .menu-backdrop {

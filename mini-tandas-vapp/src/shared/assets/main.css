@@ -27,6 +27,9 @@
   --radius-small: 6px;
   --shadow: 0 1px 2px rgb(43 33 24 / 6%), 0 4px 16px rgb(43 33 24 / 6%);
   --shadow-fab: 0 4px 14px rgb(43 33 24 / 30%);
+  --shadow-hover: 0 2px 4px rgb(43 33 24 / 8%), 0 10px 24px rgb(43 33 24 / 10%);
+  /* Dimmed backdrop behind dialogs and sheets. */
+  --color-scrim: rgb(27 20 16 / 50%);
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -60,6 +63,8 @@ html[data-theme='dark'] {
   --color-focus-ring: #d96f35;
   --shadow: 0 1px 2px rgb(20 10 5 / 45%), 0 4px 16px rgb(20 10 5 / 45%);
   --shadow-fab: 0 4px 14px rgb(20 10 5 / 55%);
+  --shadow-hover: 0 2px 4px rgb(20 10 5 / 40%), 0 10px 24px rgb(20 10 5 / 45%);
+  --color-scrim: rgb(8 5 3 / 65%);
 }
 
 /* ── Base ──────────────────────────────────────────────────────────────── */
@@ -294,9 +299,12 @@ a {
 
 /* ── Responsive helpers ────────────────────────────────────────────────── */
 /* Mobile breakpoint: 720px. Nav on mobile is a static bottom bar —
-   --nav-bottom must match its height. */
+   --nav-bottom-height is its minimum height, in rem so it grows with the
+   user's text size; the home-indicator inset is added on top of it. */
 :root {
-  --nav-bottom-height: 58px;
+  --nav-bottom-height: 3.625rem;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --fab-size: 56px;
 }
 
 @media (max-width: 720px) {
@@ -315,9 +323,9 @@ a {
 .fab {
   position: fixed;
   right: var(--space-4);
-  bottom: calc(var(--nav-bottom-height) + var(--space-4));
-  width: 56px;
-  height: 56px;
+  bottom: calc(var(--nav-bottom-height) + var(--safe-bottom) + var(--space-4));
+  width: var(--fab-size);
+  height: var(--fab-size);
   border-radius: 50%;
   border: none;
   background: var(--color-primary);
@@ -372,4 +380,13 @@ a {
 /* Headings focused after navigation: no ring for pointer users. */
 h1[tabindex='-1']:focus:not(:focus-visible) {
   outline: none;
+}
+
+/* ── Touch targets (coarse pointers): >= 44px, WCAG 2.5.8 / Fitts ─────── */
+@media (pointer: coarse) {
+  .btn,
+  .input,
+  .select {
+    min-height: 44px;
+  }
 }

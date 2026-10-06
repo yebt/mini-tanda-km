@@ -146,13 +146,29 @@ async function removeOption(variation: Variation, option: VariationOption) {
 }
 
 .chip-remove {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
   border: none;
+  border-radius: 50%;
   background: transparent;
   color: var(--color-ink-soft);
   font-size: 1rem;
   line-height: 1;
   cursor: pointer;
-  padding: 0 0.3rem;
+  padding: 0;
+}
+
+/* Touch: grow the hit area to 44px without changing the chip's size. */
+@media (pointer: coarse) {
+  .chip-remove::after {
+    content: '';
+    position: absolute;
+    inset: -10px;
+  }
 }
 
 .chip-remove:hover {

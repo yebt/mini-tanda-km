@@ -62,7 +62,7 @@ useDialogFocus({ container: sheet, onEscape: onClose })
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: rgb(27 20 16 / 55%);
+  background: var(--color-scrim);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -101,6 +101,13 @@ useDialogFocus({ container: sheet, onEscape: onClose })
   cursor: pointer;
 }
 
+@media (pointer: coarse) {
+  .dialog-close {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 .dialog-close:hover {
   color: var(--color-ink);
   background: var(--color-primary-soft);
@@ -117,7 +124,7 @@ useDialogFocus({ container: sheet, onEscape: onClose })
     max-width: none;
     max-height: 85dvh;
     border-radius: var(--radius) var(--radius) 0 0;
-    padding-bottom: var(--space-4);
+    padding-bottom: calc(var(--space-4) + var(--safe-bottom));
   }
 }
 </style>

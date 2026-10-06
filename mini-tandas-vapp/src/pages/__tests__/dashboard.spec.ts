@@ -19,11 +19,18 @@ beforeEach(async () => {
 })
 
 describe('Dashboard', () => {
-  it('has one page heading and labels, not numbers, as section headings', () => {
+  it('has one page heading, puts Next up first and uses labels, not numbers, as headings', () => {
     const wrapper = mountDashboard()
     expect(wrapper.findAll('h1').map((h) => h.text())).toEqual(['Dashboard'])
     const headings = wrapper.findAll('h2').map((h) => h.text())
-    expect(headings).toEqual(['Active tandas', 'Owed by clients', 'Products', 'Next up'])
+    expect(headings).toEqual(['Next up', 'Active tandas', 'Owed by clients', 'Products'])
+  })
+
+  it('opens the creation form from "New tanda"', () => {
+    const link = mountDashboard()
+      .findAllComponents(RouterLinkStub)
+      .find((l) => l.text() === 'New tanda')!
+    expect(link.props('to')).toEqual({ path: '/tandas', query: { new: '1' } })
   })
 
   it('keeps "Next up" in sync when tandas change while mounted', async () => {
