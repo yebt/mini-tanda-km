@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { useId, useTemplateRef } from 'vue'
+
 import type { SaleWithDetails, TandaType } from '@shared/db/types'
+import { useDialogFocus } from '@shared/ui/useDialogFocus'
 import { useScrollLock } from '@shared/ui/useScrollLock'
 
 import SaleForm from './SaleForm.vue'
@@ -22,16 +25,22 @@ const emit = defineEmits<{
 function onClose() {
   emit('close')
 }
+
+const titleId = useId()
+const sheet = useTemplateRef<HTMLElement>('sheet')
+useDialogFocus({ container: sheet, onEscape: onClose })
 </script>
 
 <template>
   <Teleport to="body">
     <div class="dialog-backdrop" @click="onClose">
       <div
+        ref="sheet"
         class="dialog-sheet"
         role="dialog"
         aria-modal="true"
-        :aria-label="initialSale ? 'Edit sale' : 'New sale'"
+        :aria-labelledby="titleId"
+        tabindex="-1"
         @click.stop
       >
         <button type="button" class="dialog-close" aria-label="Close" @click="onClose">×</button>
@@ -40,6 +49,7 @@ function onClose() {
           :type="type"
           :initial-sku-id="initialSkuId"
           :initial-sale="initialSale"
+          :title-id="titleId"
           @submitted="onClose"
         />
       </div>

@@ -1,10 +1,24 @@
 <script setup lang="ts">
-import { watch } from 'vue'
+import { useId, useTemplateRef, watch } from 'vue'
 
 import { useConfirmHost } from '@shared/ui/useConfirm'
+import { useDialogFocus } from '@shared/ui/useDialogFocus'
 import { lockScroll, unlockScroll } from '@shared/ui/useScrollLock'
 
 const { pending, accept, dismiss } = useConfirmHost()
+
+const titleId = useId()
+const messageId = useId()
+const dialog = useTemplateRef<HTMLElement>('dialog')
+const cancelButton = useTemplateRef<HTMLButtonElement>('cancelButton')
+
+// Confirms guard destructive actions: start on Cancel, Escape dismisses.
+useDialogFocus({
+  container: dialog,
+  active: () => pending.value !== null,
+  onEscape: dismiss,
+  initialFocus: () => cancelButton.value,
+})
 
 watch(
   pending,
@@ -19,10 +33,19 @@ watch(
 <template>
   <Teleport to="body">
     <div v-if="pending" class="confirm-overlay" @click.self="dismiss">
-      <div class="confirm-dialog" role="alertdialog" aria-modal="true">
-        <p class="confirm-message">{{ pending.message }}</p>
+      <div
+        ref="dialog"
+        class="confirm-dialog"
+        role="alertdialog"
+        aria-modal="true"
+        :aria-labelledby="titleId"
+        :aria-describedby="messageId"
+        tabindex="-1"
+      >
+        <h2 :id="titleId" class="visually-hidden">Please confirm</h2>
+        <p :id="messageId" class="confirm-message">{{ pending.message }}</p>
         <div class="row confirm-actions">
-          <button type="button" class="btn" @click="dismiss">Cancel</button>
+          <button ref="cancelButton" type="button" class="btn" @click="dismiss">Cancel</button>
           <button type="button" class="btn btn-primary" @click="accept">
             {{ pending.confirmLabel }}
           </button>

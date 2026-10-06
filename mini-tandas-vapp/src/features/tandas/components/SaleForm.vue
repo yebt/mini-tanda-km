@@ -18,6 +18,8 @@ const props = defineProps<{
   initialSkuId?: string
   /** Existing sale being edited; when set, the form prefills and updates it. */
   initialSale?: SaleWithDetails
+  /** Id for the heading, so a wrapping dialog can reference it as its name. */
+  titleId?: string
 }>()
 
 const emit = defineEmits<{
@@ -126,7 +128,7 @@ function submit() {
 
 <template>
   <section class="card sale-form">
-    <h2>{{ isEdit ? 'Edit sale' : 'New sale' }}</h2>
+    <h2 :id="titleId">{{ isEdit ? 'Edit sale' : 'New sale' }}</h2>
 
     <div class="field">
       <label class="label" for="sale-client">Client</label>
