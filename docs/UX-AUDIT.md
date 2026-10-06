@@ -281,3 +281,63 @@ Effort: **S** ≤ 2 h · **M** ≈ ½–1 day · **L** ≈ 2–3 days.
 - No screen reader (NVDA, VoiceOver) or real touch device was used. Announcements were inferred from the markup and the runtime DOM probes listed above.
 - Load timing was measured locally with a warm cache. Cold, throttled mobile performance (LCP/INP) was not profiled.
 - Settings import/export and currency switching were reviewed in code only and not exercised end to end.
+
+---
+
+## 7. Remediation status
+
+Fixed on branches `fix/ux-critical-high` (UX-01…UX-08) and `fix/ux-medium-low` (UX-09…UX-47). Product decisions taken while fixing are recorded in `odd/tasks/ux-medium-low.md`.
+
+**47 of 47 fixed; none left open.**
+
+| ID | Status | Commit | Fix |
+|---|---|---|---|
+| UX-01 | fixed | `e4d5003` | Default SKU for products without variations, plus migration and e2e |
+| UX-02 | fixed | `2dc9d09` | `useDialogFocus`: focus in, trap, Escape, restore; named alertdialog |
+| UX-03 | fixed | `eed741c` | ARIA 1.2 combobox with active descendant and keyboard selection |
+| UX-04 | fixed | `3e8c045` | Darker badge inks (contrast-tested) |
+| UX-05 | fixed | `3e8c045` | Control border and focus ring tokens ≥ 3:1 |
+| UX-06 | fixed | `0bc2f18` | Accessible names for every form control |
+| UX-07 | fixed | `3e8c045` | Focus ring on the delivered toggle track |
+| UX-08 | fixed | `ce77e18` | Unpriced SKUs cannot be stocked or sold; reason and link shown |
+| UX-09 | fixed | `248d170` | Rem-based nav with `min-height`, large-text labels, stacked header, wrapping actions |
+| UX-10 | fixed | `2065ae2` | Route titles plus entity names on detail views |
+| UX-11 | fixed | `2065ae2` | Dashboard `<h1>`, label headings; open tanda name inside the `<h1>` |
+| UX-12 | fixed | `2065ae2` | Skip link; focus moves to the new view's `<h1>` |
+| UX-13 | fixed | `248d170` | 44px targets on coarse pointers; chip × ≥ 24px with a 44px hit area |
+| UX-14 | fixed | `248d170` | `.app-main:has(.fab)` reserves room for the FAB |
+| UX-15 | fixed | `248d170` | Toolbar "New sale" desktop-only; "New tanda" opens the form (`?new=1`) |
+| UX-16 | fixed | `2065ae2` | Back only on detail routes, parent-list fallback for deep links |
+| UX-17 | fixed | `6793513` | Danger-toned confirms, Cancel set apart; import is undoable |
+| UX-18 | fixed | `6793513` | Consequence copy; product/client delete pre-checked |
+| UX-19 | fixed | `7d3f2fc` | Polite toast region; Undo for recorded/deleted payments |
+| UX-20 | fixed | `7d3f2fc` | Errors tied to fields (`aria-describedby`/`aria-invalid`, `role=alert`), focus first invalid |
+| UX-21 | fixed | `7d3f2fc` | One price rule (blank or ≥ 0) with an inline error |
+| UX-22 | fixed | `9f2140b` | Stock count only for anticipated tandas |
+| UX-23 | fixed | `7d3f2fc` | Visible hint linked to the disabled delivered toggle |
+| UX-24 | fixed | `6793513` | Discard prompt for drafted lines (backdrop, ×, Escape) |
+| UX-25 | fixed | `9f2140b` | Central `badges.ts`; gray neutral and amber warning badges |
+| UX-26 | fixed | `2065ae2` | `TabList` (WAI-ARIA tabs); tanda tab synced to `?tab=` |
+| UX-27 | fixed | `6793513` | Menu-button keyboard pattern in `ActionMenu` |
+| UX-28 | fixed | `6793513` | Persistent "Done"; "Changes here save automatically" note |
+| UX-29 | fixed | `9f2140b` | Client sales grouped per tanda with per-sale "Record payment" |
+| UX-30 | fixed | `3f5ec46` | Static boot splash and a readable startup error screen |
+| UX-31 | fixed | `7d3f2fc` | "Add sale" stays enabled and explains what is missing |
+| UX-32 | fixed | `248d170` | Status actions wrap on narrow screens |
+| UX-33 | fixed | `248d170` | "Next up" first; compact stats row on mobile |
+| UX-34 | fixed | `9f2140b` | No CSS `capitalize`; enum labels capitalized in code |
+| UX-35 | fixed | `9f2140b` | Thumbnails use `alt=""` |
+| UX-36 | fixed | `7d3f2fc` | "e.g. …" placeholders; visible labels on variation/option inputs |
+| UX-37 | fixed | `7d3f2fc` | `inputmode="decimal"` text inputs with tolerant parsing; `autocomplete="off"` |
+| UX-38 | fixed | `248d170` | `theme-color` meta kept in sync; scrim and hover-shadow tokens |
+| UX-39 | fixed | `248d170` | `viewport-fit=cover` and safe-area insets on nav, sheet and FAB |
+| UX-40 | fixed | `9f2140b` | Browser locale for money and dates (en-US fallback) |
+| UX-41 | fixed | `9f2140b` | Shared table card and right-aligned tabular money columns |
+| UX-42 | fixed | `2065ae2` | Inner tab-panel headings visually hidden |
+| UX-43 | fixed | `6793513` | Confirm before closing pre-orders |
+| UX-44 | fixed | `9f2140b` | Clients FAB scrolls to, focuses and highlights the create field |
+| UX-45 | fixed | `2065ae2` | `nextActions` is a `computed` |
+| UX-46 | fixed | `248d170` | Tanda name stacks above the date on mobile |
+| UX-47 | fixed | `9f2140b` | Locked inventory hides unproduced SKUs and empty groups; red only when sold out |
+
+Limits of the fixes: UX-13 touch sizes and UX-39 safe areas are verified structurally (CSS), not on a real touch device. UX-09 was re-tested with the same root-font-size simulation as the audit, not with OS text scaling. The UX-28 save model was kept (General saves on submit; variations and prices apply instantly) and is now labelled instead of unified.
