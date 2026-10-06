@@ -55,8 +55,8 @@ const rows = computed<Row[]>(() =>
         <tr v-for="row in rows" :key="row.product.id">
           <td>
             <div class="cell-product">
-              <div class="product-photo" :class="{ 'has-photo': row.product.photo }">
-                <img v-if="row.product.photo" :src="row.product.photo"  alt="" />
+              <div class="product-photo" :class="{ 'has-photo': row.product.thumbnail }">
+                <img v-if="row.product.thumbnail" :src="row.product.thumbnail" alt="" />
                 <span v-else>{{ row.initial }}</span>
               </div>
               <div class="cell-text">

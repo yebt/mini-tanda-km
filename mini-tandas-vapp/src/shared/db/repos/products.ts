@@ -7,7 +7,7 @@ interface ProductRow {
   id: string
   name: string
   description: string | null
-  photo: string | null
+  thumbnail: string | null
   price_mode: Product['priceMode']
   price: number | null
   price_variation_ids: string | null
@@ -38,7 +38,7 @@ function mapProduct(row: ProductRow, variations: Variation[]): Product {
     id: row.id,
     name: row.name,
     description: row.description,
-    photo: row.photo,
+    thumbnail: row.thumbnail,
     priceMode: row.price_mode,
     price: fromCentsOrNull(row.price),
     priceVariationIds: row.price_variation_ids
@@ -63,40 +63,112 @@ function listVariations(productId: string): Variation[] {
   }))
 }
 
+/**
+ * Columns read by list/detail queries. Never `SELECT *`: the full photo lives
+ * in product_photos and must not be copied out of SQLite for every list.
+ */
+const PRODUCT_COLUMNS =
+  'id, name, description, thumbnail, price_mode, price, price_variation_ids'
+
 export function listProducts(): Product[] {
-  const rows = all<ProductRow>('SELECT * FROM products ORDER BY name COLLATE NOCASE')
+  const rows = all<ProductRow>(
+    `SELECT ${PRODUCT_COLUMNS} FROM products ORDER BY name COLLATE NOCASE`,
+  )
   return rows.map((row) => mapProduct(row, listVariations(row.id)))
 }
 
 export function getProduct(id: string): Product | null {
-  const row = get<ProductRow>('SELECT * FROM products WHERE id = ?', [id])
+  const row = get<ProductRow>(`SELECT ${PRODUCT_COLUMNS} FROM products WHERE id = ?`, [id])
   return row ? mapProduct(row, listVariations(row.id)) : null
+}
+
+/** Full-size photo of a product (data URL), read only by the editor. */
+export function getProductPhoto(productId: string): string | null {
+  return (
+    get<{ data: string }>('SELECT data FROM product_photos WHERE product_id = ?', [productId])
+      ?.data ?? null
+  )
+}
+
+/** Products that have a photo but no thumbnail yet (migrated or imported). */
+export function listProductsMissingThumbnail(): string[] {
+  return all<{ id: string }>(
+    `SELECT p.id FROM products p
+     JOIN product_photos ph ON ph.product_id = p.id
+     WHERE p.thumbnail IS NULL
+     ORDER BY p.name COLLATE NOCASE`,
+  ).map((row) => row.id)
+}
+
+export function setProductThumbnail(productId: string, thumbnail: string | null): void {
+  run('UPDATE products SET thumbnail = ? WHERE id = ?', [thumbnail, productId])
+}
+
+/**
+ * Store several generated thumbnails with a single write (one reactive bump).
+ * Only products still missing one are updated, so a thumbnail generated from
+ * a photo that was replaced meanwhile never overwrites the newer one.
+ */
+export function setProductThumbnails(thumbnails: Map<string, string>): void {
+  if (thumbnails.size === 0) return
+  transaction(() => {
+    for (const [productId, thumbnail] of thumbnails) {
+      run('UPDATE products SET thumbnail = ? WHERE id = ? AND thumbnail IS NULL', [
+        thumbnail,
+        productId,
+      ])
+    }
+  })
 }
 
 export interface ProductInput {
   name: string
   description: string | null
-  photo: string | null
+  /**
+   * Full photo (data URL). `undefined` keeps the stored photo and thumbnail;
+   * `null` removes both.
+   */
+  photo?: string | null
+  /**
+   * Thumbnail generated for a new `photo`. When a photo is sent without one,
+   * the thumbnail is cleared and generated later by the backfill.
+   */
+  thumbnail?: string | null
   priceMode: Product['priceMode']
   price: number | null
   priceVariationIds?: string[]
+}
+
+/** Apply `input.photo`/`input.thumbnail` (call inside a transaction). */
+function writePhoto(productId: string, input: Pick<ProductInput, 'photo' | 'thumbnail'>): void {
+  if (input.photo === undefined) return
+  if (input.photo === null || input.photo === '') {
+    run('DELETE FROM product_photos WHERE product_id = ?', [productId])
+    setProductThumbnail(productId, null)
+    return
+  }
+  run('INSERT OR REPLACE INTO product_photos (product_id, data) VALUES (?, ?)', [
+    productId,
+    input.photo,
+  ])
+  setProductThumbnail(productId, input.thumbnail ?? null)
 }
 
 export function createProduct(input: ProductInput): string {
   const id = uid()
   transaction(() => {
     run(
-      'INSERT INTO products (id, name, description, photo, price_mode, price, price_variation_ids) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO products (id, name, description, price_mode, price, price_variation_ids) VALUES (?, ?, ?, ?, ?, ?)',
       [
         id,
         input.name,
         input.description,
-        input.photo,
         input.priceMode,
         toCentsOrNull(input.price),
         JSON.stringify(input.priceVariationIds ?? []),
       ],
     )
+    writePhoto(id, input)
     // A product without variations is sold as its single default SKU.
     recomputeSkus(id)
   })
@@ -106,18 +178,20 @@ export function createProduct(input: ProductInput): string {
 export function updateProduct(id: string, input: ProductInput): void {
   // Preserve the pricing subset when the form does not send it.
   const priceVariationIds = input.priceVariationIds ?? getProduct(id)?.priceVariationIds ?? []
-  run(
-    'UPDATE products SET name = ?, description = ?, photo = ?, price_mode = ?, price = ?, price_variation_ids = ? WHERE id = ?',
-    [
-      input.name,
-      input.description,
-      input.photo,
-      input.priceMode,
-      toCentsOrNull(input.price),
-      JSON.stringify(priceVariationIds),
-      id,
-    ],
-  )
+  transaction(() => {
+    run(
+      'UPDATE products SET name = ?, description = ?, price_mode = ?, price = ?, price_variation_ids = ? WHERE id = ?',
+      [
+        input.name,
+        input.description,
+        input.priceMode,
+        toCentsOrNull(input.price),
+        JSON.stringify(priceVariationIds),
+        id,
+      ],
+    )
+    writePhoto(id, input)
+  })
 }
 
 /** True when the product is referenced by any sale or inventory item. */

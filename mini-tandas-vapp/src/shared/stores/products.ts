@@ -7,6 +7,7 @@ import {
   addVariation,
   createProduct,
   deleteProduct,
+  getProductPhoto,
   listPriceRows,
   listProducts,
   listSkusWithProducts,
@@ -53,6 +54,11 @@ export const useProductsStore = defineStore('products', () => {
     return createProduct(input)
   }
 
+  /** Full-size photo for the editor (lists use `product.thumbnail`). */
+  function photoFor(id: string): string | null {
+    return getProductPhoto(id)
+  }
+
   /** Why a product cannot be deleted (checked before asking to confirm), or null. */
   function removalBlocker(id: string): string | null {
     return productInUse(id)
@@ -73,6 +79,7 @@ export const useProductsStore = defineStore('products', () => {
     priceRows,
     catalog,
     saveProduct,
+    photoFor,
     removalBlocker,
     removeProduct,
     addVariation,

@@ -15,7 +15,12 @@ export interface Product {
   id: string
   name: string
   description: string | null
-  photo: string | null
+  /**
+   * Small preview image for lists (data URL). The full photo is loaded only
+   * by the editor (`getProductPhoto`). Null when there is no photo, or until
+   * the thumbnail of a freshly migrated/imported photo is generated.
+   */
+  thumbnail: string | null
   priceMode: PriceMode
   /** Global price — set when priceMode is 'global' or the product has no variations. */
   price: number | null

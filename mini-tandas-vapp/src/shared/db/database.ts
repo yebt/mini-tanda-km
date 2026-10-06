@@ -79,13 +79,22 @@ CREATE TABLE IF NOT EXISTS products (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   description TEXT,
-  photo TEXT,
+  -- Small preview image (data URL, ~160px) shown by lists. The full photo
+  -- lives in product_photos and is read only by the product editor (v4+).
+  thumbnail TEXT,
   price_mode TEXT NOT NULL DEFAULT 'global' CHECK (price_mode IN ('global', 'per_sku')),
   -- Money columns hold integer cents (schema v2+).
   price INTEGER,
   -- JSON array of variation ids that drive pricing (per_sku mode). Empty/NULL
   -- means the pricing variation subset has not been chosen yet.
   price_variation_ids TEXT
+);
+
+-- Full-size product photo (data URL), kept out of the products row so list
+-- queries never copy it out of SQLite.
+CREATE TABLE IF NOT EXISTS product_photos (
+  product_id TEXT PRIMARY KEY REFERENCES products(id) ON DELETE CASCADE,
+  data TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS variations (
@@ -203,7 +212,7 @@ export function openWithInstance(instance: Database): void {
 }
 
 /** Current schema version (PRAGMA user_version). */
-export const SCHEMA_VERSION = 3
+export const SCHEMA_VERSION = 4
 
 /** Columns holding money, stored as integer cents since schema v2. */
 const MONEY_COLUMNS: Record<string, string[]> = {
@@ -220,6 +229,8 @@ const MONEY_COLUMNS: Record<string, string[]> = {
  * depend on a subset of variations.
  * v1 → v2: money columns move from REAL currency units to integer cents.
  * v2 → v3: products without variation options get their single default SKU.
+ * v3 → v4: full photos move from products.photo to product_photos; products
+ *          gain a thumbnail column (filled asynchronously in the browser).
  */
 function migrate(): void {
   const d = requireDb()
@@ -259,6 +270,23 @@ function migrate(): void {
     try {
       ensureDefaultSkus()
       d.run('PRAGMA user_version = 3')
+      d.run('COMMIT')
+    } catch (error) {
+      d.run('ROLLBACK')
+      throw error
+    }
+  }
+  if (version < 4) {
+    d.run('BEGIN')
+    try {
+      const columns = all<{ name: string }>('PRAGMA table_info(products)').map((c) => c.name)
+      if (!columns.includes('thumbnail')) d.run('ALTER TABLE products ADD COLUMN thumbnail TEXT')
+      if (columns.includes('photo')) {
+        d.run(`INSERT OR REPLACE INTO product_photos (product_id, data)
+               SELECT id, photo FROM products WHERE photo IS NOT NULL AND photo <> ''`)
+        d.run('ALTER TABLE products DROP COLUMN photo')
+      }
+      d.run('PRAGMA user_version = 4')
       d.run('COMMIT')
     } catch (error) {
       d.run('ROLLBACK')
@@ -344,6 +372,7 @@ export function transaction(fn: () => void): void {
 
 const EXPORT_TABLES = [
   'products',
+  'product_photos',
   'variations',
   'variation_options',
   'skus',
@@ -383,7 +412,9 @@ export function exportPayload(): {
  * foreign keys. Only columns that exist in each table are imported; unknown
  * keys are ignored so they never reach the SQL text. Backups without a
  * `schemaVersion` >= 2 hold money as REAL currency units and are converted
- * to cents. Returns the number of rows inserted.
+ * to cents. Backups from before v4 keep the full photo on the product row;
+ * it is moved to product_photos (its thumbnail is backfilled later).
+ * Returns the number of rows inserted.
  */
 export function importAllData(payload: unknown): number {
   const data =
@@ -417,12 +448,15 @@ export function importAllData(payload: unknown): number {
     'skus',
     'variation_options',
     'variations',
+    'product_photos',
     'products',
     'clients',
     'settings',
   ] as const
 
   let inserted = 0
+  /** Pre-v4 backups: photo found on a product row, keyed by product id. */
+  const legacyPhotos = new Map<string, string>()
   transaction(() => {
     for (const table of DELETE_ORDER) {
       run(`DELETE FROM ${table}`)
@@ -440,6 +474,9 @@ export function importAllData(payload: unknown): number {
           throw new Error(`Invalid row in table "${table}".`)
         }
         const record = row as Record<string, SqlValue>
+        if (table === 'products' && typeof record.photo === 'string' && record.photo !== '') {
+          legacyPhotos.set(String(record.id), record.photo)
+        }
         const columns = Object.keys(record).filter((column) => knownColumns.has(column))
         if (columns.length === 0) continue
         const moneyColumns = moneyInCents ? [] : (MONEY_COLUMNS[table] ?? [])
@@ -453,6 +490,12 @@ export function importAllData(payload: unknown): number {
         )
         inserted++
       }
+    }
+    for (const [productId, data] of legacyPhotos) {
+      run('INSERT OR IGNORE INTO product_photos (product_id, data) VALUES (?, ?)', [
+        productId,
+        data,
+      ])
     }
     // Backups from older versions lack the default SKU of simple products.
     ensureDefaultSkus()

@@ -6,6 +6,8 @@ import { useProductsStore } from '@shared/stores/products'
 import type { PriceMode, Product } from '@shared/db/types'
 import { notify } from '@shared/ui/useToast'
 
+import { createThumbnail } from '../lib/thumbnail'
+
 const props = defineProps<{
   /** The product being edited, or null when creating a new one. */
   initial: Product | null
@@ -23,6 +25,10 @@ const MAX_PHOTO_BYTES = 1024 * 1024
 const name = ref('')
 const description = ref('')
 const photo = ref<string | null>(null)
+/** True once the user picked or removed a photo; untouched photos are not re-sent. */
+const photoChanged = ref(false)
+/** Thumbnail being generated for a newly picked photo. */
+let pendingThumbnail: Promise<string | null> = Promise.resolve(null)
 const priceMode = ref<PriceMode>('global')
 const price = ref('')
 /** Field-level errors, tied to their inputs with aria-describedby. */
@@ -37,7 +43,10 @@ watch(
   (product) => {
     name.value = product?.name ?? ''
     description.value = product?.description ?? ''
-    photo.value = product?.photo ?? null
+    // Only the editor loads the full photo; lists use the thumbnail.
+    photo.value = product ? store.photoFor(product.id) : null
+    photoChanged.value = false
+    pendingThumbnail = Promise.resolve(null)
     priceMode.value = product?.priceMode ?? 'global'
     price.value = product?.price == null ? '' : String(product.price)
     nameError.value = ''
@@ -59,12 +68,21 @@ function onPhotoChange(event: Event) {
   photoError.value = ''
   const reader = new FileReader()
   reader.onload = () => {
-    photo.value = typeof reader.result === 'string' ? reader.result : null
+    const picked = typeof reader.result === 'string' ? reader.result : null
+    photo.value = picked
+    photoChanged.value = true
+    pendingThumbnail = picked ? createThumbnail(picked) : Promise.resolve(null)
   }
   reader.readAsDataURL(file)
 }
 
-function submit() {
+function removePhoto() {
+  photo.value = null
+  photoChanged.value = true
+  pendingThumbnail = Promise.resolve(null)
+}
+
+async function submit() {
   const trimmedName = name.value.trim()
   const parsedPrice = parseMoneyInput(price.value)
   nameError.value = trimmedName ? '' : 'Name is required.'
@@ -82,13 +100,15 @@ function submit() {
     return
   }
   const isNew = !props.initial
+  // A missing thumbnail (e.g. undecodable image) is generated later by the backfill.
+  const thumbnail = photoChanged.value && photo.value ? await pendingThumbnail : null
   // Keep sending only the general fields — omitting `priceVariationIds`
   // preserves the pricing subset chosen in the Variations & pricing tab.
   const id = store.saveProduct({
     id: props.initial?.id,
     name: trimmedName,
     description: description.value.trim() || null,
-    photo: photo.value,
+    ...(photoChanged.value ? { photo: photo.value, thumbnail } : {}),
     priceMode: priceMode.value,
     price: priceMode.value === 'global' ? parsedPrice : null,
   })
@@ -127,7 +147,7 @@ function submit() {
       <label class="label" for="product-photo">Photo</label>
       <div v-if="photo" class="row photo-preview">
         <img :src="photo" alt="Product photo preview" />
-        <button type="button" class="btn btn-ghost" @click="photo = null">Remove photo</button>
+        <button type="button" class="btn btn-ghost" @click="removePhoto">Remove photo</button>
       </div>
       <input
         id="product-photo"
