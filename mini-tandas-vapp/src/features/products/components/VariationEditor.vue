@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 
 import { confirmDialog } from '@shared/ui/useConfirm'
 import { useProductsStore } from '@shared/stores/products'
@@ -24,11 +24,35 @@ function setDraft(variationId: string, event: Event) {
   optionDrafts.value = { ...optionDrafts.value, [variationId]: value }
 }
 
-function addVariation() {
+/** "New option" inputs by variation id, for moving focus after adding. */
+const optionInputs = new Map<string, HTMLInputElement>()
+
+function bindOptionInput(variationId: string, el: unknown) {
+  if (el instanceof HTMLInputElement) optionInputs.set(variationId, el)
+  else optionInputs.delete(variationId)
+}
+
+/** Variation whose "New option" input should take focus once it renders. */
+let focusOnRender: string | null = null
+
+function focusPendingOptionInput() {
+  if (!focusOnRender) return
+  const input = optionInputs.get(focusOnRender)
+  if (!input) return
+  focusOnRender = null
+  input.focus()
+}
+
+// The new variation arrives through the `product` prop on a later render.
+watch(() => props.product.variations.length, focusPendingOptionInput, { flush: 'post' })
+
+async function addVariation() {
   const name = newVariationName.value.trim()
   if (!name) return
-  store.addVariation(props.product.id, name)
+  focusOnRender = store.addVariation(props.product.id, name)
   newVariationName.value = ''
+  await nextTick()
+  focusPendingOptionInput()
 }
 
 async function removeVariation(variation: Variation) {
@@ -46,6 +70,8 @@ function addOption(variation: Variation) {
   if (!label) return
   store.addOption(variation.id, label)
   optionDrafts.value = { ...optionDrafts.value, [variation.id]: '' }
+  // Ready for the next option, whether it was added by click or Enter.
+  optionInputs.get(variation.id)?.focus()
 }
 
 async function removeOption(variation: Variation, option: VariationOption) {
@@ -94,6 +120,7 @@ async function removeOption(variation: Variation, option: VariationOption) {
       <div class="row option-add">
         <input
           :id="`option-input-${variation.id}`"
+          :ref="(el) => bindOptionInput(variation.id, el)"
           type="text"
           class="input"
           name="option-label"
