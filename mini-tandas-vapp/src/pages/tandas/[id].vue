@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { computed, ref, useTemplateRef } from 'vue'
+import { onBeforeRouteLeave, RouterLink, useRoute, useRouter } from 'vue-router'
 import { Plus } from 'lucide-vue-next'
 
 import { canSell as tandaCanSell } from '@shared/domain/tanda'
@@ -73,6 +73,14 @@ function closeSaleDialog() {
   dialogInitialSku.value = undefined
   dialogInitialSale.value = undefined
 }
+
+const saleDialog = useTemplateRef<InstanceType<typeof SaleDialog>>('saleDialog')
+
+/** Leaving the tanda with a drafted sale asks first, like closing the sheet does. */
+onBeforeRouteLeave(async () => {
+  if (!dialogOpen.value || !saleDialog.value) return true
+  return saleDialog.value.confirmDiscard()
+})
 </script>
 
 <template>
@@ -129,6 +137,7 @@ function closeSaleDialog() {
 
     <SaleDialog
       v-if="dialogOpen"
+      ref="saleDialog"
       :tanda-id="tanda.id"
       :type="tanda.type"
       :initial-sku-id="dialogInitialSku"

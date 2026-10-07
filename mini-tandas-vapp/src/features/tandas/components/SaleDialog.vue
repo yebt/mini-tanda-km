@@ -2,6 +2,7 @@
 import { useId, useTemplateRef } from 'vue'
 
 import type { SaleWithDetails, TandaType } from '@shared/db/types'
+import { useBackToClose } from '@shared/ui/useBackToClose'
 import { confirmDialog } from '@shared/ui/useConfirm'
 import { useDialogFocus } from '@shared/ui/useDialogFocus'
 import { useScrollLock } from '@shared/ui/useScrollLock'
@@ -31,22 +32,52 @@ function onSubmitted() {
   emit('close')
 }
 
-/** Backdrop, × or Escape: ask before throwing away drafted lines. */
-async function requestClose() {
-  if (asking) return
-  const size = form.value?.draftSize?.() ?? 0
-  if (size > 0) {
-    asking = true
-    const ok = await confirmDialog(
-      `Discard this sale? ${size === 1 ? 'The item' : `The ${size} items`} you added will be lost.`,
-      'Discard',
-      { tone: 'danger' },
-    )
-    asking = false
-    if (!ok) return
-  }
-  emit('close')
+const draftSize = () => form.value?.draftSize?.() ?? 0
+
+/**
+ * Ask before throwing away drafted lines. Resolves true when the user
+ * confirms; false when they keep the draft or a confirmation is already open.
+ */
+async function askDiscard(size: number): Promise<boolean> {
+  if (asking) return false
+  asking = true
+  const ok = await confirmDialog(
+    `Discard this sale? ${size === 1 ? 'The item' : `The ${size} items`} you added will be lost.`,
+    'Discard',
+    { tone: 'danger' },
+  )
+  asking = false
+  return ok
 }
+
+/** True when nothing would be lost, otherwise asks (used by the route-leave guard). */
+function confirmDiscard(): boolean | Promise<boolean> {
+  if (asking) return false
+  const size = draftSize()
+  return size === 0 ? true : askDiscard(size)
+}
+
+/**
+ * Backdrop, ×, Escape or Back: close unless the user keeps the draft.
+ * Without drafted lines it closes synchronously.
+ */
+function requestClose(): boolean | Promise<boolean> {
+  const allowed = confirmDiscard()
+  if (allowed === true) {
+    emit('close')
+    return true
+  }
+  if (allowed === false) return false
+  return allowed.then((ok) => {
+    if (ok) emit('close')
+    return ok
+  })
+}
+
+// Back (gesture or browser button) closes the sheet instead of leaving the page.
+useBackToClose(requestClose)
+
+defineExpose({ confirmDiscard })
 
 const titleId = useId()
 const sheet = useTemplateRef<HTMLElement>('sheet')
