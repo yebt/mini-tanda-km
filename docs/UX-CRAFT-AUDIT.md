@@ -350,3 +350,33 @@ Quick wins de una sesión: A-01, A-09, A-12, A-03, A-08 (pausa), A-15, A-25, A-2
 - Datos sembrados (4 productos, 5 clientes, 9 ventas): A-07 y A-18 (volumen alto) son **inferidos**; validar con una tanda real de 20–40 pedidos.
 - Recomendado validar con 3–5 usuarias reales los sev ≥3 inferidos (A-07, A-09) antes de priorizar esfuerzo M.
 - Artefactos: capturas citadas por A-01..A-09 en [`ux-craft-audit/`](ux-craft-audit/); el resto de capturas, las mediciones (`measure.json`, `capture-report.json`) y los scripts de siembra y medición quedaron en el directorio temporal de la sesión y no se incluyen. La auditoría no modificó el código.
+
+---
+
+## Estado de remediación
+
+Rama `fix/ux-craft-sev34` (desde `fix/ui-polish`). Se corrigieron los hallazgos de severidad 4 y 3; los de severidad 2 y 1 quedan pendientes. Cada arreglo lleva sus pruebas en el mismo commit.
+
+| ID | Sev | Estado | Commit | Qué se hizo |
+|---|---|---|---|---|
+| A-01 | 4 | Corregido | `04b179c` | Búsqueda del combobox sin acentos ni mayúsculas (`foldText`, compartido); un nombre igual tras normalizar ya no ofrece "Create"; "Did you mean <nombre>?" sobre "Create" cuando el texto amplía un nombre existente ("Ana Lopez Garcia" → "Ana López"). |
+| A-04 | 3 | Corregido | `aed215f` | Sin fondo invisible: la lista se cierra al perder el foco o con un `pointerdown` fuera (sin `preventDefault`); ya no se reabre con foco programático. Esc sigue cerrando solo la lista. |
+| A-02 | 3 | Corregido | `28379fa` | La hoja de venta añade una entrada de historial: Atrás la cierra con la misma confirmación de descarte que × y Esc; `onBeforeRouteLeave` en la tanda mientras hay borrador. |
+| A-05 | 3 | Corregido | `b3001aa` | Editor de producto en `/products/new` y `/products/:id` (`?tab=variations`); Atrás vuelve a la lista; confirmación al salir y `beforeunload` con cambios sin guardar en General. |
+| A-06 | 3 | Corregido | `045dd81` | "Rename" en el ⋯ de la lista de clientes y de la ficha: diálogo con validación (vacío) y aviso si el nombre normalizado ya existe ("Rename anyway"). |
+| A-03 | 3 | Corregido | `c965877` | Aviso en línea si el pago supera lo pendiente de la venta: "Apply <saldo>" o "Record as credit" (paga la venta completa y registra el excedente como abono general; un solo Undo). |
+| A-07 | 3 | Corregido | `3db84a8` | Barra de resumen (ventas, total, cobrado, pendiente, entregadas x/y) y chips All / Unpaid / Undelivered con conteo y `aria-pressed`, guardados en `?filter=`; vacío filtrado con "Clear filter". |
+| A-08 | 3 | Corregido | `f2f9c03` | Los toasts se pausan con hover o foco y reanudan con el tiempo restante; Undo dura 10 s. Tras "Replace all data", Settings ofrece "Restore previous data" (o "Keep imported data") hasta la siguiente importación o el cierre de la app. |
+| A-09 | 3 | Corregido | `2ddbba6` | Controles de formulario a `max(16px, 1rem)` en ≤720 px, incluido el campo del stepper. |
+| A-10…A-21 | 2 | Pendiente | — | Fuera de alcance de esta rama. |
+| A-22…A-33 | 1 | Pendiente | — | Fuera de alcance de esta rama. |
+
+Partes de los arreglos propuestos que no se incluyeron (anotadas para el backlog):
+- A-01: sugerencia por distancia de edición ≤2 ("Lupe"/"Lupita"); solo se cubren nombre igual normalizado y prefijo.
+- A-03: aviso con "General payment" cuando supera la deuda total (se decidió no avisar en abonos generales).
+- A-05: mantener `?new=1` del formulario "New tanda" hasta crear o cancelar.
+- A-06: "Merge into…" para fusionar duplicados.
+- A-07: búsqueda por cliente a partir de ~10 ventas.
+- A-08: descarga automática de un respaldo antes de reemplazar; el punto de restauración vive solo en memoria durante la sesión.
+
+Verificación al cierre: pruebas unitarias, `type-check`, `lint`, build de producción y e2e en Chromium y Firefox (ver `odd/tasks/ux-craft-sev34.md`). Capturas a 375 px en claro y oscuro de la hoja de venta, el resumen de ventas, el aviso de sobrepago y el diálogo de renombrar revisadas; no se probó en iOS Safari real (A-09 sigue siendo inferido en cuanto al zoom).
