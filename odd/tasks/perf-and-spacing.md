@@ -29,7 +29,7 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 - [x] T2 Query shape: `listSkusWithProducts` without calling `listProducts`; variations/options in batched queries.
 - [x] T3 Rendering: `ProductList` renders table or cards (not both); images `loading="lazy"` `decoding="async"` with fixed size.
 - [x] T4 Invalidation: per-table/domain versions instead of one global `dbVersion`.
-- [ ] T5 Routes: lazy `ProductForm`; idle/hover prefetch of route chunks.
+- [x] T5 Routes: lazy `ProductForm`; idle/hover prefetch of route chunks.
 - [ ] T6 Spacing: layout tokens (`--gap-section`, `--gap-grid`, `--pad-card`) applied across all views.
 
 ## Progress / evidence

@@ -15,6 +15,7 @@ import ConfirmDialogHost from '@shared/ui/ConfirmDialogHost.vue'
 import ToastHost from '@shared/ui/ToastHost.vue'
 
 import { isDetailPath, parentPath } from './router/navigation'
+import { prefetchRoute } from './router/prefetch'
 
 interface NavItem {
   to: string
@@ -35,6 +36,11 @@ const router = useRouter()
 
 /** Back only on detail pages; the bottom nav handles top-level sections. */
 const showBack = computed(() => isDetailPath(route.path))
+
+/** Start loading a section's code as soon as the pointer or focus reaches its link. */
+function prefetch(to: string): void {
+  void prefetchRoute(router, to)
+}
 
 function goBack(): void {
   // Deep link (no in-app history): go to the parent list instead of leaving the app.
@@ -82,7 +88,14 @@ onBeforeUnmount(removeAfterEach)
         Mini Tanda
       </RouterLink>
       <nav class="nav desktop-only">
-        <RouterLink v-for="item in navItems" :key="item.to" :to="item.to" class="nav-link">
+        <RouterLink
+          v-for="item in navItems"
+          :key="item.to"
+          :to="item.to"
+          class="nav-link"
+          @pointerenter="prefetch(item.to)"
+          @focus="prefetch(item.to)"
+        >
           {{ item.label }}
         </RouterLink>
       </nav>
@@ -94,7 +107,14 @@ onBeforeUnmount(removeAfterEach)
   </main>
 
   <nav class="bottom-nav mobile-only" aria-label="Main navigation">
-    <RouterLink v-for="item in navItems" :key="item.to" :to="item.to" class="bottom-nav-link">
+    <RouterLink
+      v-for="item in navItems"
+      :key="item.to"
+      :to="item.to"
+      class="bottom-nav-link"
+      @pointerdown="prefetch(item.to)"
+      @focus="prefetch(item.to)"
+    >
       <component :is="item.icon" :size="22" :stroke-width="1.8" aria-hidden="true" />
       <span class="bottom-nav-label">{{ item.label }}</span>
     </RouterLink>

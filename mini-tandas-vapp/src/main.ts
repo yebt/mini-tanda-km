@@ -6,9 +6,11 @@ import { createPinia } from 'pinia'
 import App from '@core/App.vue'
 import { renderBootError } from '@core/bootError'
 import router from '@core/router'
+import { prefetchAllRoutes } from '@core/router/prefetch'
 import { initDatabase } from '@shared/db/database'
 import { loadSettings } from '@shared/db/settings'
 import { initTheme } from '@shared/ui/useTheme'
+import { whenIdle } from '@shared/ui/whenIdle'
 import { scheduleThumbnailBackfill } from '@/features/products/lib/thumbnail'
 
 async function bootstrap() {
@@ -25,6 +27,8 @@ async function bootstrap() {
 
   // Photos migrated or restored from older versions get their list thumbnail.
   scheduleThumbnailBackfill()
+  // Fetch the other sections' code while idle so the first visit is instant.
+  whenIdle(() => void prefetchAllRoutes(router))
 }
 
 bootstrap().catch((error: unknown) => {

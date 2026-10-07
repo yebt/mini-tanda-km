@@ -1,15 +1,22 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 
 import { confirmDialog } from '@shared/ui/useConfirm'
 import { notify } from '@shared/ui/useToast'
+import { whenIdle } from '@shared/ui/whenIdle'
 import { useProductsStore } from '@shared/stores/products'
 import type { Product } from '@shared/db/types'
 
-import ProductForm from '@/features/products/components/ProductForm.vue'
 import ProductList from '@/features/products/components/ProductList.vue'
 
+const loadProductForm = () => import('@/features/products/components/ProductForm.vue')
+/** The editor is not needed to show the list: load its code on demand. */
+const ProductForm = defineAsyncComponent(loadProductForm)
+
 const store = useProductsStore()
+
+// Warm the editor chunk once the list is on screen and the browser is idle.
+onMounted(() => whenIdle(() => void loadProductForm().catch(() => {})))
 
 const formOpen = ref(false)
 const editingId = ref<string | null>(null)
