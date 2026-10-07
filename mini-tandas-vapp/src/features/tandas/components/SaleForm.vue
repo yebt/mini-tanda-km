@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Minus, Plus, X } from 'lucide-vue-next'
+import { Plus, X } from 'lucide-vue-next'
 
 import { formatMoney } from '@shared/db/format'
 import type { SaleWithDetails, TandaType } from '@shared/db/types'
@@ -8,6 +8,7 @@ import { useClientsStore } from '@shared/stores/clients'
 import { useProductsStore } from '@shared/stores/products'
 import { useTandasStore } from '@shared/stores/tandas'
 import Combobox, { type ComboOption } from '@shared/ui/Combobox.vue'
+import QuantityStepper from '@shared/ui/QuantityStepper.vue'
 import { notify } from '@shared/ui/useToast'
 
 import { useSaleDraft, type DraftLine } from '../composables/useSaleDraft'
@@ -40,13 +41,10 @@ const {
   error,
   skuOptions,
   remainingForSelected,
-  canBumpQtyUp,
   runningTotal,
   lineCap,
   lineStockLabel,
-  bumpQty,
   addLine: addDraftLine,
-  bumpLine,
   setLineQuantity,
   removeLine,
   reset,
@@ -88,9 +86,15 @@ function onSkuEnter() {
   if (selectedSkuId.value) addLine()
 }
 
-function onLineQtyInput(line: DraftLine, event: Event) {
-  const input = event.target as HTMLInputElement
-  input.value = String(setLineQuantity(line, Number(input.value)))
+/** The pending line can take at most what is left of the picked SKU (at least 1). */
+const composerMax = computed(() =>
+  remainingForSelected.value === null
+    ? Number.POSITIVE_INFINITY
+    : Math.max(remainingForSelected.value, 1),
+)
+
+function onLineQuantity(line: DraftLine, next: number) {
+  setLineQuantity(line, next)
 }
 
 /**
@@ -185,35 +189,14 @@ function submit() {
     </div>
 
     <div class="field composer">
-      <div class="stepper">
-        <button
-          type="button"
-          class="stepper-btn"
-          aria-label="Decrease amount"
-          :disabled="quantity <= 1"
-          @click="bumpQty(-1)"
-        >
-          <Minus :size="16" />
-        </button>
-        <input
-          v-model.number="quantity"
-          class="input stepper-input"
-          type="number"
-          min="1"
-          step="1"
-          aria-label="Quantity"
-          @keydown.enter.prevent="addLine"
-        />
-        <button
-          type="button"
-          class="stepper-btn"
-          aria-label="Increase amount"
-          :disabled="!canBumpQtyUp"
-          @click="bumpQty(1)"
-        >
-          <Plus :size="16" />
-        </button>
-      </div>
+      <QuantityStepper
+        v-model="quantity"
+        :max="composerMax"
+        label="Quantity"
+        decrease-label="Decrease amount"
+        increase-label="Increase amount"
+        @enter="addLine"
+      />
       <button type="button" class="btn add-line-btn" @click="addLine">
         <Plus :size="16" />
         Add line
@@ -228,7 +211,7 @@ function submit() {
         <li v-for="line in lines" :key="line.skuId" class="line-card">
           <div class="line-info">
             <span class="line-label">{{ line.label }}</span>
-            <span class="muted">{{ formatMoney(line.price) }} each</span>
+            <span class="muted line-price">{{ formatMoney(line.price) }} each</span>
             <span
               v-if="lineStockLabel(line) !== null"
               class="line-stock"
@@ -237,35 +220,16 @@ function submit() {
               {{ lineStockLabel(line) }}
             </span>
           </div>
-          <div class="stepper stepper-sm">
-            <button
-              type="button"
-              class="stepper-btn"
-              :aria-label="`One less ${line.label}`"
-              :disabled="line.quantity <= 1"
-              @click="bumpLine(line, -1)"
-            >
-              <Minus :size="14" />
-            </button>
-            <input
-              class="input stepper-input"
-              type="number"
-              min="1"
-              step="1"
-              :value="line.quantity"
-              :aria-label="`Units of ${line.label}`"
-              @change="onLineQtyInput(line, $event)"
-            />
-            <button
-              type="button"
-              class="stepper-btn"
-              :aria-label="`One more ${line.label}`"
-              :disabled="line.quantity >= lineCap(line)"
-              @click="bumpLine(line, 1)"
-            >
-              <Plus :size="14" />
-            </button>
-          </div>
+          <QuantityStepper
+            class="line-qty"
+            size="sm"
+            :model-value="line.quantity"
+            :max="lineCap(line)"
+            :label="`Units of ${line.label}`"
+            :decrease-label="`One less ${line.label}`"
+            :increase-label="`One more ${line.label}`"
+            @update:model-value="onLineQuantity(line, $event)"
+          />
           <span class="money line-total">{{ formatMoney(line.price * line.quantity) }}</span>
           <button
             type="button"
@@ -273,7 +237,7 @@ function submit() {
             :aria-label="`Remove ${line.label}`"
             @click="removeLine(line.skuId)"
           >
-            <X :size="15" />
+            <X :size="16" aria-hidden="true" />
           </button>
         </li>
       </ul>
@@ -306,65 +270,12 @@ h2 {
   gap: var(--space-2);
 }
 
-/* ── Quantity stepper (draft composer + inline line rows) ─────────────── */
-.stepper {
-  display: inline-flex;
-  align-items: stretch;
-  flex-shrink: 0;
-}
-
-.stepper-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  padding: 0;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-ink);
-  cursor: pointer;
-}
-
-.stepper-btn:first-child {
-  border-radius: var(--radius-small) 0 0 var(--radius-small);
-}
-
-.stepper-btn:last-child {
-  border-radius: 0 var(--radius-small) var(--radius-small) 0;
-}
-
-.stepper-btn:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
-.stepper-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.stepper-input {
-  width: 3rem;
-  padding-inline: 0.25rem;
-  text-align: center;
-  border-radius: 0;
-  border-left: none;
-  border-right: none;
-  -webkit-appearance: none;
-  appearance: none;
-  -moz-appearance: textfield;
-}
-
-.stepper-input::-webkit-outer-spin-button,
-.stepper-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
+/* "Add line" matches the stepper: same height and border weight. */
 .add-line-btn {
   flex: 1;
   justify-content: center;
-  min-height: 44px;
+  height: 44px;
+  border-color: var(--color-control-border);
 }
 
 /* ── Lines: stacked cards on mobile, one row on desktop ───────────────── */
@@ -386,24 +297,35 @@ h2 {
   gap: var(--space-2);
 }
 
+/* Mobile: name + unit price over (stepper | line total); remove top-right. */
 .line-card {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'info remove'
+    'qty total';
   align-items: center;
   gap: var(--space-2) var(--space-3);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
 }
 
 .line-info {
-  flex: 1 1 calc(100% - 2.5rem);
+  grid-area: info;
+  align-self: start;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0 var(--space-2);
   min-width: 0;
+  padding-top: 0.2rem;
+}
+
+.line-qty {
+  grid-area: qty;
+  justify-self: start;
 }
 
 .line-label {
@@ -421,21 +343,17 @@ h2 {
   color: var(--color-danger);
 }
 
-.stepper-sm .stepper-btn {
-  width: 36px;
-  min-height: 36px;
-}
-
-.stepper-sm .stepper-input {
-  width: 2.8rem;
-}
-
 .line-total {
-  margin-left: auto;
+  grid-area: total;
+  justify-self: end;
   font-size: 1.02rem;
+  text-align: right;
 }
 
 .line-remove {
+  grid-area: remove;
+  align-self: start;
+  justify-self: end;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -455,14 +373,10 @@ h2 {
 }
 
 @media (pointer: coarse) {
-  .stepper-sm .stepper-btn,
   .line-remove {
     width: 44px;
-    min-height: 44px;
-  }
-
-  .line-remove {
     height: 44px;
+    margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0 0;
   }
 }
 
@@ -505,17 +419,21 @@ h2 {
   font-weight: 700;
 }
 
+/* Desktop: one row — info | stepper | total | remove, columns aligned across rows. */
 @media (min-width: 721px) {
   .line-card {
-    flex-wrap: nowrap;
+    grid-template-columns: minmax(0, 1fr) auto 7.5rem auto;
+    grid-template-areas: 'info qty total remove';
+    padding-block: var(--space-2);
   }
 
   .line-info {
-    flex: 1 1 auto;
+    align-self: center;
+    padding-top: 0;
   }
 
-  .line-total {
-    margin-left: 0;
+  .line-remove {
+    align-self: center;
   }
 }
 </style>

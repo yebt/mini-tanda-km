@@ -37,6 +37,32 @@ describe('SaleForm', () => {
     expect(wrapper.emitted('submitted')).toBeUndefined()
     wrapper.unmount()
   })
+
+  it('uses one quantity stepper for the pending line and for each item row', async () => {
+    const sku = listSkusWithProducts()[0]!
+    const wrapper = mount(SaleForm, {
+      props: { tandaId, type: 'scheduled', initialSkuId: sku.id },
+      attachTo: document.body,
+    })
+    const button = (name: string) => wrapper.get(`button[aria-label="${name}"]`)
+
+    await button('Increase amount').trigger('click')
+    expect(wrapper.get<HTMLInputElement>('input[aria-label="Quantity"]').element.value).toBe('2')
+    await wrapper.findAll('button').find((b) => b.text() === 'Add line')!.trigger('click')
+
+    const units = wrapper.get<HTMLInputElement>('input[aria-label="Units of Cookies box"]')
+    expect(units.element.value).toBe('2')
+    expect(wrapper.get('.line-total').text()).toContain('240.00')
+
+    await button('One more Cookies box').trigger('click')
+    expect(units.element.value).toBe('3')
+    expect(wrapper.get('.line-total').text()).toContain('360.00')
+
+    await units.setValue('1')
+    expect(button('One less Cookies box').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.line-total').text()).toContain('120.00')
+    wrapper.unmount()
+  })
 })
 
 describe('SaleList', () => {
