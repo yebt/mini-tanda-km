@@ -59,6 +59,20 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/products/[id]': RouteRecordInfo<
+      '/products/[id]',
+      '/products/:id',
+      { id: ParamValue<true> },
+      { id: ParamValue<false> },
+      | never
+    >,
+    '/products/new': RouteRecordInfo<
+      '/products/new',
+      '/products/new',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/settings/': RouteRecordInfo<
       '/settings/',
       '/settings',
@@ -120,6 +134,22 @@ declare module 'vue-router/auto-routes' {
     'src/pages/products/index.vue': {
       routes:
         | '/products/'
+      views:
+        | never
+      pathParamNames:
+        | never
+    }
+    'src/pages/products/[id].vue': {
+      routes:
+        | '/products/[id]'
+      views:
+        | never
+      pathParamNames:
+        | 'id'
+    }
+    'src/pages/products/new.vue': {
+      routes:
+        | '/products/new'
       views:
         | never
       pathParamNames:
