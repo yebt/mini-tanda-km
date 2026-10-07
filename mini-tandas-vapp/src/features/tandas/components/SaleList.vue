@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, useId } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Truck } from 'lucide-vue-next'
 
 import { formatDateTime, formatMoney } from '@shared/db/format'
@@ -10,6 +10,10 @@ import { useTandasStore } from '@shared/stores/tandas'
 import ActionMenu from '@shared/ui/ActionMenu.vue'
 import { confirmDialog } from '@shared/ui/useConfirm'
 import { notify } from '@shared/ui/useToast'
+
+import { filterSales, parseSaleFilter, summarizeSales, type SaleFilter } from '../lib/saleSummary'
+import SaleFilterChips from './SaleFilterChips.vue'
+import SalesSummaryBar from './SalesSummaryBar.vue'
 
 const props = defineProps<{
   tanda: Pick<Tanda, 'id' | 'type' | 'status'>
@@ -22,9 +26,35 @@ const emit = defineEmits<{
 }>()
 
 const tandasStore = useTandasStore()
+const route = useRoute()
 const router = useRouter()
 
 const sales = computed(() => tandasStore.salesFor(props.tanda.id))
+const summary = computed(() => summarizeSales(sales.value))
+
+/** The active filter lives in `?filter=` so reload and Back keep it. */
+const filter = computed<SaleFilter>({
+  get: () => parseSaleFilter(route.query.filter),
+  set: (value) => {
+    void router.replace({ query: { ...route.query, filter: value === 'all' ? undefined : value } })
+  },
+})
+
+const filterCounts = computed<Record<SaleFilter, number>>(() => ({
+  all: summary.value.count,
+  unpaid: summary.value.unpaid,
+  undelivered: summary.value.undelivered,
+}))
+
+const visibleSales = computed(() => filterSales(sales.value, filter.value))
+
+const EMPTY_FILTER_MESSAGE: Record<Exclude<SaleFilter, 'all'>, string> = {
+  unpaid: 'Every sale is paid.',
+  undelivered: 'Every sale is delivered.',
+}
+const emptyFilterMessage = computed(() =>
+  filter.value === 'all' ? '' : EMPTY_FILTER_MESSAGE[filter.value],
+)
 
 const canMarkDelivered = computed(() => canDeliver(props.tanda))
 const deliveryHintId = useId()
@@ -61,7 +91,16 @@ async function remove(sale: SaleWithDetails) {
 
     <p v-if="sales.length === 0" class="card empty-state">No sales yet.</p>
 
-    <article v-for="sale in sales" :key="sale.id" class="card sale-card">
+    <template v-else>
+      <SalesSummaryBar :summary="summary" />
+      <SaleFilterChips v-model="filter" :counts="filterCounts" />
+      <div v-if="visibleSales.length === 0" class="card empty-state filter-empty" role="status">
+        <p>{{ emptyFilterMessage }}</p>
+        <button type="button" class="btn" @click="filter = 'all'">Clear filter</button>
+      </div>
+    </template>
+
+    <article v-for="sale in visibleSales" :key="sale.id" class="card sale-card">
       <header class="sale-head">
         <div class="sale-client">
           <strong class="sale-client-name">{{ sale.client.name }}</strong>
@@ -124,6 +163,18 @@ async function remove(sale: SaleWithDetails) {
 <style scoped>
 h2 {
   margin-bottom: var(--space-3);
+}
+
+.filter-empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.filter-empty p {
+  margin: 0;
 }
 
 .sale-card {
