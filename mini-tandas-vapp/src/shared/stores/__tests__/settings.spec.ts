@@ -36,3 +36,48 @@ describe('settings store backups', () => {
     expect(store.currency).toBe('USD')
   })
 })
+
+describe('settings store: restore the data replaced by an import', () => {
+  function backupWith(name: string) {
+    const store = useSettingsStore()
+    const id = createClient(name)
+    const backup = JSON.parse(JSON.stringify(store.exportBackup()))
+    return { backup, id }
+  }
+
+  it('keeps the pre-import data and restores it on request', () => {
+    const store = useSettingsStore()
+    const { backup } = backupWith('Imported')
+    // Current data before importing: only "Mine".
+    store.importBackup({ ...backup, data: { ...backup.data, clients: [] } })
+    createClient('Mine')
+
+    store.replaceAllData(backup)
+    expect(listClients().map((c) => c.name)).toEqual(['Imported'])
+    expect(store.restorePoint).not.toBeNull()
+
+    store.restorePrevious()
+    expect(listClients().map((c) => c.name)).toEqual(['Mine'])
+    expect(store.restorePoint).toBeNull()
+  })
+
+  it('offers only the latest restore point, and can be dismissed', () => {
+    const store = useSettingsStore()
+    const { backup } = backupWith('Imported')
+    store.replaceAllData(backup)
+    const first = store.restorePoint
+    store.replaceAllData(backup)
+    expect(store.restorePoint).not.toBe(first)
+
+    store.dismissRestorePoint()
+    expect(store.restorePoint).toBeNull()
+    expect(() => store.restorePrevious()).not.toThrow()
+    expect(listClients().map((c) => c.name)).toEqual(['Imported'])
+  })
+
+  it('keeps no restore point when the file is invalid', () => {
+    const store = useSettingsStore()
+    expect(() => store.replaceAllData('not a backup')).toThrow('Not a Mini Tanda export file.')
+    expect(store.restorePoint).toBeNull()
+  })
+})

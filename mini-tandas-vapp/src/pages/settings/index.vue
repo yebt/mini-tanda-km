@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import { formatMoney } from '@shared/db/format'
+import { formatDateTime, formatMoney } from '@shared/db/format'
 import { useSettingsStore } from '@shared/stores/settings'
 import { confirmDialog } from '@shared/ui/useConfirm'
 import { notify } from '@shared/ui/useToast'
@@ -41,23 +41,21 @@ async function onImportFile(event: Event): Promise<void> {
   input.value = ''
   if (!file) return
   const ok = await confirmDialog(
-    'Importing replaces ALL current data (products, clients, tandas, sales, payments). You can undo it right after.',
+    'Importing replaces ALL current data (products, clients, tandas, sales, payments). Until you close the app or import again, you can restore the current data from Settings.',
     'Replace all data',
     { tone: 'danger' },
   )
   if (!ok) return
   try {
     const text = await file.text()
-    // Snapshot first so the replacement can be undone.
-    const previous: unknown = JSON.parse(JSON.stringify(store.exportBackup()))
-    const rows = store.importBackup(JSON.parse(text))
+    const rows = store.replaceAllData(JSON.parse(text))
     // Success is announced by the toast (with Undo); the inline status keeps errors.
     importMessage.value = ''
     notify(`Imported ${rows} rows.`, {
       action: {
         label: 'Undo',
         run: () => {
-          store.importBackup(previous)
+          store.restorePrevious()
           importMessage.value = 'Import undone — previous data restored.'
         },
       },
@@ -66,6 +64,19 @@ async function onImportFile(event: Event): Promise<void> {
     importMessage.value = error instanceof Error ? error.message : 'Import failed.'
   }
 }
+
+/** Later revert from Settings: anything done since the import is lost, so ask. */
+async function restoreFromSettings(): Promise<void> {
+  const ok = await confirmDialog(
+    'Restore the data you had before the last import? Changes made since the import will be lost.',
+    'Restore previous data',
+    { tone: 'danger' },
+  )
+  if (!ok) return
+  store.restorePrevious()
+  importMessage.value = 'Previous data restored.'
+}
+
 </script>
 
 <template>
@@ -115,12 +126,42 @@ async function onImportFile(event: Event): Promise<void> {
         Export downloads every table — products, clients, tandas, sales, payments. Importing
         replaces all current data with the backup file.
       </p>
+      <div v-if="store.restorePoint" class="restore-panel">
+        <p class="restore-text">
+          Data replaced by an import on {{ formatDateTime(store.restorePoint.replacedAt) }}. The
+          data you had before the last import is kept until you close the app or import again.
+        </p>
+        <div class="row-wrap restore-actions">
+          <button type="button" class="btn" @click="restoreFromSettings">
+            Restore previous data
+          </button>
+          <button type="button" class="btn btn-ghost" @click="store.dismissRestorePoint()">
+            Keep imported data
+          </button>
+        </div>
+      </div>
       <p v-if="importMessage" class="muted" role="status">{{ importMessage }}</p>
     </div>
   </div>
 </template>
 
 <style scoped>
+.restore-panel {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-small);
+  background: var(--color-bg);
+}
+
+.restore-text {
+  margin: 0 0 var(--space-2);
+}
+
+.restore-actions {
+  gap: var(--space-2);
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

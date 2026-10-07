@@ -1,13 +1,28 @@
 <script setup lang="ts">
 import { X } from 'lucide-vue-next'
 
-import { dismissToast, runToastAction, toasts } from './useToast'
+import { dismissToast, holdToast, releaseToast, runToastAction, toasts } from './useToast'
+
+/** Focus moving between the toast's own buttons does not release the hold. */
+function onFocusOut(id: number, event: FocusEvent): void {
+  const next = event.relatedTarget as Node | null
+  if (next && (event.currentTarget as HTMLElement).contains(next)) return
+  releaseToast(id, 'focus')
+}
 </script>
 
 <template>
   <!-- Always rendered: a live region must exist before its content changes. -->
   <div class="toast-region" role="status" aria-live="polite">
-    <div v-for="toast in toasts" :key="toast.id" class="toast">
+    <div
+      v-for="toast in toasts"
+      :key="toast.id"
+      class="toast"
+      @pointerenter="holdToast(toast.id, 'hover')"
+      @pointerleave="releaseToast(toast.id, 'hover')"
+      @focusin="holdToast(toast.id, 'focus')"
+      @focusout="onFocusOut(toast.id, $event)"
+    >
       <span class="toast-message">{{ toast.message }}</span>
       <button
         v-if="toast.action"

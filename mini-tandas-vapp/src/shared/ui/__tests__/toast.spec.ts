@@ -43,3 +43,53 @@ describe('toasts', () => {
     expect(wrapper.text()).not.toContain('Saved.')
   })
 })
+
+describe('toast timing (WCAG 2.2.1: pausable)', () => {
+  it('keeps an Undo toast for at least 10 s', async () => {
+    vi.useFakeTimers()
+    const wrapper = mount(ToastHost)
+    notify('Payment recorded.', { action: { label: 'Undo', run: () => {} } })
+    vi.advanceTimersByTime(9_900)
+    await nextTick()
+    expect(wrapper.text()).toContain('Payment recorded.')
+  })
+
+  it('pauses while hovered and resumes with the time that was left', async () => {
+    vi.useFakeTimers()
+    const wrapper = mount(ToastHost)
+    notify('Saved.')
+    await nextTick()
+    vi.advanceTimersByTime(3_000)
+    await wrapper.get('.toast').trigger('pointerenter')
+    vi.advanceTimersByTime(60_000)
+    await nextTick()
+    expect(wrapper.text()).toContain('Saved.')
+
+    await wrapper.get('.toast').trigger('pointerleave')
+    vi.advanceTimersByTime(1_900)
+    await nextTick()
+    expect(wrapper.text()).toContain('Saved.')
+    vi.advanceTimersByTime(200)
+    await nextTick()
+    expect(wrapper.text()).not.toContain('Saved.')
+  })
+
+  it('pauses while focus is inside and only resumes when neither hover nor focus holds it', async () => {
+    vi.useFakeTimers()
+    const wrapper = mount(ToastHost)
+    notify('Payment recorded.', { action: { label: 'Undo', run: () => {} } })
+    await nextTick()
+    const toast = wrapper.get('.toast')
+    await toast.trigger('focusin')
+    await toast.trigger('pointerenter')
+    await toast.trigger('pointerleave')
+    vi.advanceTimersByTime(60_000)
+    await nextTick()
+    expect(wrapper.text()).toContain('Payment recorded.')
+
+    await toast.trigger('focusout')
+    vi.advanceTimersByTime(10_000)
+    await nextTick()
+    expect(wrapper.text()).not.toContain('Payment recorded.')
+  })
+})
