@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { Plus } from 'lucide-vue-next'
 
 import { formatDate, formatMoney } from '@shared/db/format'
 import type { ClientSummary } from '@shared/db/types'
@@ -95,7 +96,9 @@ async function remove(client: ClientSummary): Promise<void> {
     <p v-if="error" id="client-name-error" class="error-text" role="alert">{{ error }}</p>
   </section>
 
-  <button class="fab mobile-only" aria-label="New client" @click="startNewClient">+</button>
+  <button class="fab mobile-only" aria-label="New client" @click="startNewClient">
+    <Plus class="fab-icon" :size="26" :stroke-width="2.25" aria-hidden="true" />
+  </button>
 
   <section class="card">
     <p v-if="sortedClients.length === 0" class="empty-state">No clients yet.</p>

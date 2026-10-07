@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { Plus } from 'lucide-vue-next'
 
 import { formatDate, formatMoney, todayISO } from '@shared/db/format'
 import type { TandaType } from '@shared/db/types'
@@ -59,7 +60,7 @@ function submit() {
   </div>
 
   <button v-if="!showForm" class="fab mobile-only" aria-label="New tanda" @click="openForm">
-    +
+    <Plus class="fab-icon" :size="26" :stroke-width="2.25" aria-hidden="true" />
   </button>
 
   <form v-if="showForm" class="card" @submit.prevent="submit">

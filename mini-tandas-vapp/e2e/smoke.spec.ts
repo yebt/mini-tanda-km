@@ -201,6 +201,21 @@ test('mobile shell: bottom nav, back button and floating create button', async (
   // Focus moves to the new view's heading after navigating.
   await expect(page.getByRole('heading', { level: 1, name: 'Products' })).toBeFocused()
 
+  // Floating action button: a drawn icon (not a text glyph), centered in the circle.
+  const fab = await page.locator('.fab').evaluate((button) => {
+    const outer = button.getBoundingClientRect()
+    const icon = button.querySelector('svg')?.getBoundingClientRect()
+    return {
+      text: button.textContent?.trim(),
+      dx: icon ? Math.abs(icon.left + icon.width / 2 - (outer.left + outer.width / 2)) : Infinity,
+      dy: icon ? Math.abs(icon.top + icon.height / 2 - (outer.top + outer.height / 2)) : Infinity,
+    }
+  })
+  expect(fab.text).toBe('')
+  expect(fab.dx).toBeLessThanOrEqual(0.5)
+  expect(fab.dy).toBeLessThanOrEqual(0.5)
+  await expect(page.locator('.fab')).toHaveAccessibleName('New product')
+
   // Floating action button creates a product on mobile.
   await page.locator('.fab').click()
   await expect(page.locator('#product-name')).toBeVisible()

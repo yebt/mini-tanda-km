@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
+import { Plus } from 'lucide-vue-next'
 
 import { confirmDialog } from '@shared/ui/useConfirm'
 import { notify } from '@shared/ui/useToast'
@@ -97,7 +98,7 @@ async function onRemove(product: Product) {
     aria-label="New product"
     @click="openNew"
   >
-    +
+    <Plus class="fab-icon" :size="26" :stroke-width="2.25" aria-hidden="true" />
   </button>
 </template>
 

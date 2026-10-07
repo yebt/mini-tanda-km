@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { Plus } from 'lucide-vue-next'
 
 import { canSell as tandaCanSell } from '@shared/domain/tanda'
 import { useTandasStore } from '@shared/stores/tandas'
@@ -123,7 +124,7 @@ function closeSaleDialog() {
       aria-label="New sale"
       @click="openSaleDialog()"
     >
-      +
+      <Plus class="fab-icon" :size="26" :stroke-width="2.25" aria-hidden="true" />
     </button>
 
     <SaleDialog
