@@ -205,6 +205,13 @@ function onKeydown(event: KeyboardEvent) {
   width: 2.75rem;
 }
 
+/* Phones: 16px or more, or iOS Safari zooms in on focus (see main.css). */
+@media (max-width: 720px) {
+  .qty-input {
+    font-size: max(16px, 1rem);
+  }
+}
+
 .qty-input:focus {
   outline: none;
 }
