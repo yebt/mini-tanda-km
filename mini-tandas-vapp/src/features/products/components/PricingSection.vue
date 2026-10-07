@@ -17,6 +17,15 @@ const store = useProductsStore()
 
 const pricingVariations = computed(() => pricingVariationsOf(props.product))
 
+function isPricing(variation: Variation): boolean {
+  return pricingVariations.value.some((candidate) => candidate.id === variation.id)
+}
+
+function optionCount(variation: Variation): string {
+  const count = variation.options.length
+  return `${count} ${count === 1 ? 'option' : 'options'}`
+}
+
 function togglePricingVariation(variation: Variation, event: Event) {
   const checked = (event.target as HTMLInputElement).checked
   const selected = new Set(props.product.priceVariationIds)
@@ -32,25 +41,34 @@ function togglePricingVariation(variation: Variation, event: Event) {
 <template>
   <section class="pricing-section">
     <h3>Pricing</h3>
-    <p class="muted">
-      Pick which variations drive the price — e.g. only SIZE, or SIZE + PACKAGING. Every option
-      combination of the chosen variations gets one price.
+    <p class="muted pricing-intro">
+      Choose the variations that change the price. Each combination of their options gets one
+      price.
     </p>
 
-    <div v-if="product.variations.length" class="depends-on">
-      <span class="label">Price depends on:</span>
-      <label v-for="variation in product.variations" :key="variation.id" class="check-option">
-        <input
-          type="checkbox"
-          :checked="pricingVariations.some((candidate) => candidate.id === variation.id)"
-          @change="togglePricingVariation(variation, $event)"
-        />
-        <span>
-          {{ variation.name }}
-          <span class="muted">({{ variation.options.length }} options)</span>
-        </span>
-      </label>
-    </div>
+    <fieldset v-if="product.variations.length" class="choice-group depends-on">
+      <legend class="label">Price depends on</legend>
+      <div class="choice-grid choice-grid-compact">
+        <label v-for="variation in product.variations" :key="variation.id" class="choice-card">
+          <input
+            type="checkbox"
+            class="choice-input"
+            :checked="isPricing(variation)"
+            :aria-labelledby="`price-var-${variation.id}-title`"
+            :aria-describedby="`price-var-${variation.id}-desc`"
+            @change="togglePricingVariation(variation, $event)"
+          />
+          <span class="choice-text">
+            <span :id="`price-var-${variation.id}-title`" class="choice-title">
+              {{ variation.name }}
+            </span>
+            <span :id="`price-var-${variation.id}-desc`" class="choice-desc">
+              {{ optionCount(variation) }}
+            </span>
+          </span>
+        </label>
+      </div>
+    </fieldset>
 
     <template v-if="pricingVariations.length">
       <PriceTable :product="product" :price-rows="priceRows" />
@@ -67,16 +85,13 @@ function togglePricingVariation(variation: Variation, event: Event) {
   margin-top: 0;
 }
 
-.depends-on {
-  margin-bottom: var(--space-4);
+.pricing-intro {
+  margin: 0 0 var(--space-4);
+  max-width: 60ch;
 }
 
-.check-option {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) 0;
-  cursor: pointer;
+.depends-on {
+  margin-bottom: var(--space-4);
 }
 
 .pricing-section > p:last-child {

@@ -380,7 +380,7 @@ a {
 
 /* ── Choice cards: radio / checkbox options as selectable cards ──────────
    Markup: fieldset.choice-group > legend.label + .choice-grid >
-   label.choice-card > input.choice-input + .choice-text (.choice-title,
+   label.choice-card > input.choice-input (radio or checkbox) + .choice-text (.choice-title,
    .choice-desc). The input stays a native radio/checkbox; only its look
    changes. Selection and keyboard focus are drawn on the whole card. */
 .choice-group {
@@ -398,6 +398,11 @@ a {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
   gap: var(--space-2);
+}
+
+/* Short choices (e.g. a name and a count): narrower columns. */
+.choice-grid-compact {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr));
 }
 
 .choice-card {
@@ -470,6 +475,30 @@ a {
 
 .choice-input:checked::before {
   transform: scale(1);
+}
+
+/* Checkbox variant: rounded square, filled with a check mark when on. */
+.choice-input[type='checkbox'] {
+  border-radius: 4px;
+}
+
+.choice-input[type='checkbox']::before {
+  width: 0.32rem;
+  height: 0.6rem;
+  margin-top: -0.12rem;
+  border-radius: 0;
+  background: none;
+  border: solid var(--color-on-primary);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) scale(0);
+}
+
+.choice-input[type='checkbox']:checked {
+  background: var(--color-primary);
+}
+
+.choice-input[type='checkbox']:checked::before {
+  transform: rotate(45deg) scale(1);
 }
 
 .choice-text {
