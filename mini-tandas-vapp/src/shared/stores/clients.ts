@@ -1,7 +1,7 @@
 import { computed } from 'vue'
 import { defineStore } from 'pinia'
 
-import { dbVersion } from '@shared/db/database'
+import { track } from '@shared/db/database'
 import {
   addPayment,
   clientInUse,
@@ -17,7 +17,8 @@ import type { ClientSummary, PaymentWithContext, SaleWithDetails } from '@shared
 
 export const useClientsStore = defineStore('clients', () => {
   const clients = computed<ClientSummary[]>(() => {
-    void dbVersion.value
+    // Balances combine sales and payments.
+    track('clients', 'sales', 'payments')
     return listClients()
   })
 
@@ -46,17 +47,18 @@ export const useClientsStore = defineStore('clients', () => {
   }
 
   function summaryFor(clientId: string): ClientSummary | null {
-    void dbVersion.value
+    track('clients', 'sales', 'payments')
     return listClients().find((client) => client.id === clientId) ?? null
   }
 
   function salesFor(clientId: string): SaleWithDetails[] {
-    void dbVersion.value
+    track('sales', 'payments', 'clients', 'products')
     return listSalesForClient(clientId)
   }
 
   function paymentsFor(clientId?: string): PaymentWithContext[] {
-    void dbVersion.value
+    // Payment rows show the client and the tanda of their sale.
+    track('payments', 'clients', 'sales', 'tandas')
     return listPayments(clientId)
   }
 

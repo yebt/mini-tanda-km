@@ -1,7 +1,7 @@
 import { computed } from 'vue'
 import { defineStore } from 'pinia'
 
-import { dbVersion } from '@shared/db/database'
+import { track } from '@shared/db/database'
 import {
   addOption,
   addVariation,
@@ -22,19 +22,20 @@ import {
 import type { PriceRow, Product, SkuWithProduct } from '@shared/db/types'
 
 export const useProductsStore = defineStore('products', () => {
-  // Reading dbVersion keeps these computeds re-evaluating after every write.
+  // Everything here reads catalog tables only: re-run after product writes.
   const products = computed<Product[]>(() => {
-    void dbVersion.value
+    track('products')
     return listProducts()
   })
 
   const skus = computed<SkuWithProduct[]>(() => {
+    track('products')
     // Reuses the loaded products instead of querying them a second time.
     return listSkusWithProducts(products.value)
   })
 
   const priceRows = computed<PriceRow[]>(() => {
-    void dbVersion.value
+    track('products')
     return listPriceRows()
   })
 

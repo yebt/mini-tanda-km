@@ -28,7 +28,7 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 - [x] T1 Photos out of list queries: explicit columns, `product_photos` table + thumbnail column (schema migration, async thumbnail backfill in the browser, export/import compatible).
 - [x] T2 Query shape: `listSkusWithProducts` without calling `listProducts`; variations/options in batched queries.
 - [x] T3 Rendering: `ProductList` renders table or cards (not both); images `loading="lazy"` `decoding="async"` with fixed size.
-- [ ] T4 Invalidation: per-table/domain versions instead of one global `dbVersion`.
+- [x] T4 Invalidation: per-table/domain versions instead of one global `dbVersion`.
 - [ ] T5 Routes: lazy `ProductForm`; idle/hover prefetch of route chunks.
 - [ ] T6 Spacing: layout tokens (`--gap-section`, `--gap-grid`, `--pad-card`) applied across all views.
 

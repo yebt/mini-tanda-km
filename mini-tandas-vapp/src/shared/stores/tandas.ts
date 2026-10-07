@@ -1,7 +1,7 @@
 import { computed } from 'vue'
 import { defineStore } from 'pinia'
 
-import { dbVersion } from '@shared/db/database'
+import { track } from '@shared/db/database'
 import {
   createSale,
   createTanda,
@@ -23,7 +23,8 @@ import type { InventoryEntry, SaleWithDetails, TandaStatus, TandaSummary } from 
 
 export const useTandasStore = defineStore('tandas', () => {
   const tandas = computed<TandaSummary[]>(() => {
-    void dbVersion.value
+    // Revenue and pending amounts come from sales and their payments.
+    track('tandas', 'sales', 'payments')
     return listTandas()
   })
 
@@ -46,12 +47,13 @@ export const useTandasStore = defineStore('tandas', () => {
   }
 
   function salesFor(tandaId: string): SaleWithDetails[] {
-    void dbVersion.value
+    // Lines are labelled from the catalog; balances include payments.
+    track('sales', 'payments', 'clients', 'products')
     return listSales(tandaId)
   }
 
   function inventoryFor(tandaId: string): InventoryEntry[] {
-    void dbVersion.value
+    track('tandas', 'sales', 'products')
     return listInventory(tandaId)
   }
 

@@ -1,4 +1,4 @@
-import { shallowRef } from 'vue'
+import { shallowRef, type ShallowRef } from 'vue'
 import initSqlJs, { type Database, type SqlValue } from 'sql.js'
 import wasmUrl from 'sql.js/dist/sql-wasm.wasm?url'
 
@@ -12,13 +12,73 @@ let db: Database | null = null
 let persistQueued = false
 
 /**
- * Bumped on every write. Components/stores read it inside `computed`
- * so queries re-run after mutations, keeping sql.js state reactive.
+ * Data domains with their own reactive version. Every write bumps the
+ * domain(s) of the table it writes; store computeds read (`track`) only the
+ * domains they depend on, so e.g. a product edit never recomputes client
+ * balances. Cross-domain reads must track every domain they read.
  */
-export const dbVersion = shallowRef(0)
+export type DataDomain = 'products' | 'tandas' | 'sales' | 'payments' | 'clients' | 'settings'
 
-function touch(): void {
-  dbVersion.value++
+export const DATA_DOMAINS: readonly DataDomain[] = [
+  'products',
+  'tandas',
+  'sales',
+  'payments',
+  'clients',
+  'settings',
+]
+
+const TABLE_DOMAINS: Record<string, DataDomain> = {
+  products: 'products',
+  product_photos: 'products',
+  variations: 'products',
+  variation_options: 'products',
+  skus: 'products',
+  sku_prices: 'products',
+  tandas: 'tandas',
+  inventory_items: 'tandas',
+  sales: 'sales',
+  sale_items: 'sales',
+  payments: 'payments',
+  clients: 'clients',
+  settings: 'settings',
+}
+
+const domainVersions = Object.fromEntries(
+  DATA_DOMAINS.map((domain) => [domain, shallowRef(0)]),
+) as Record<DataDomain, ShallowRef<number>>
+
+/** Read inside a `computed` so it re-runs after writes to these domains. */
+export function track(...domains: DataDomain[]): void {
+  for (const domain of domains) void domainVersions[domain].value
+}
+
+/** Current version of a domain (non-reactive read, for tests and diagnostics). */
+export function domainVersion(domain: DataDomain): number {
+  return domainVersions[domain].value
+}
+
+const WRITE_TABLE = /^\s*(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|UPDATE(?:\s+OR\s+\w+)?|DELETE\s+FROM|REPLACE\s+INTO)\s+(\w+)/i
+
+/**
+ * Domains a write statement touches. Anything that cannot be attributed to a
+ * known table conservatively invalidates every domain.
+ */
+export function domainsOf(sql: string): readonly DataDomain[] {
+  const table = WRITE_TABLE.exec(sql)?.[1]?.toLowerCase()
+  const domain = table ? TABLE_DOMAINS[table] : undefined
+  return domain ? [domain] : DATA_DOMAINS
+}
+
+/** Domains written inside the open transaction, bumped once on COMMIT. */
+let pendingDomains: Set<DataDomain> | null = null
+
+function touch(domains: readonly DataDomain[]): void {
+  if (pendingDomains) {
+    for (const domain of domains) pendingDomains.add(domain)
+    return
+  }
+  for (const domain of domains) domainVersions[domain].value++
   persistQueued = true
   schedulePersist()
 }
@@ -350,24 +410,31 @@ export function get<T>(sql: string, params: SqlValue[] = []): T | null {
   return all<T>(sql, params)[0] ?? null
 }
 
-/** Run a write statement and bump the reactive version. */
+/** Run a write statement and bump the version of the domain it writes. */
 export function run(sql: string, params: SqlValue[] = []): void {
   requireDb().run(sql, params)
-  touch()
+  touch(domainsOf(sql))
 }
 
-/** Run multiple statements as one transaction; bumps the version once. */
+/**
+ * Run multiple statements as one transaction; each written domain is bumped
+ * once on commit, and nothing is bumped when it rolls back.
+ */
 export function transaction(fn: () => void): void {
   const d = requireDb()
   d.run('BEGIN')
+  const written = new Set<DataDomain>()
+  pendingDomains = written
   try {
     fn()
     d.run('COMMIT')
-    touch()
   } catch (error) {
     d.run('ROLLBACK')
     throw error
+  } finally {
+    pendingDomains = null
   }
+  if (written.size > 0) touch([...written])
 }
 
 const EXPORT_TABLES = [
