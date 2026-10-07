@@ -182,3 +182,58 @@ describe('Combobox search', () => {
     expect(combo.emitted('create')).toEqual([['Ana Lopez Garcia']])
   })
 })
+
+describe('Combobox dismissal (no click-eating backdrop)', () => {
+  function mountWithNeighbour() {
+    const outside = document.createElement('button')
+    outside.textContent = 'Other control'
+    document.body.appendChild(outside)
+    const combo = mountCombo()
+    return { combo, outside }
+  }
+
+  it('renders no full-screen backdrop while the list is open', async () => {
+    const { combo } = mountWithNeighbour()
+    await combo.get('input').trigger('click')
+    expect(combo.get('input').attributes('aria-expanded')).toBe('true')
+    expect(document.querySelector('.combo-backdrop')).toBeNull()
+  })
+
+  it('closes the list on a pointer press outside without swallowing it', async () => {
+    const { combo, outside } = mountWithNeighbour()
+    await combo.get('input').trigger('click')
+    const press = new Event('pointerdown', { bubbles: true, cancelable: true })
+    outside.dispatchEvent(press)
+    await combo.vm.$nextTick()
+    expect(combo.get('input').attributes('aria-expanded')).toBe('false')
+    expect(press.defaultPrevented).toBe(false)
+  })
+
+  it('keeps the list open on a pointer press inside the listbox', async () => {
+    const combo = mountCombo()
+    await combo.get('input').trigger('click')
+    listbox().dispatchEvent(new Event('pointerdown', { bubbles: true }))
+    await combo.vm.$nextTick()
+    expect(combo.get('input').attributes('aria-expanded')).toBe('true')
+  })
+
+  it('closes the list when focus leaves the field', async () => {
+    const { combo, outside } = mountWithNeighbour()
+    const input = combo.get('input').element as HTMLInputElement
+    input.focus()
+    await combo.get('input').trigger('click')
+    outside.focus()
+    await combo.vm.$nextTick()
+    expect(input.getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('does not reopen the list on programmatic focus (e.g. focus returning from a dialog)', async () => {
+    const combo = mountCombo()
+    const input = combo.get('input').element as HTMLInputElement
+    input.focus()
+    await combo.vm.$nextTick()
+    expect(input.getAttribute('aria-expanded')).toBe('false')
+    await combo.get('input').trigger('click')
+    expect(input.getAttribute('aria-expanded')).toBe('true')
+  })
+})

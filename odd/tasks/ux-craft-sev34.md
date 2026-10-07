@@ -19,7 +19,7 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 ## Tasks
 - [x] T0 Add `docs/UX-CRAFT-AUDIT.md` + only the screenshots it references for sev 4/3 findings (`docs/ux-craft-audit/`), fixing relative paths.
 - [x] T1 A-01 Accent/case-insensitive search in Combobox (+ "did you mean" for near-duplicate client names on create).
-- [ ] T2 A-04 Combobox closes on blur/outside pointer without a click-eating backdrop.
+- [x] T2 A-04 Combobox closes on blur/outside pointer without a click-eating backdrop.
 - [ ] T3 A-02 Sale sheet is history-aware: Back closes it and asks before discarding a draft.
 - [ ] T4 A-05 Product editor has its own route (`/products/:id`, `/products/new`) with leave confirmation for unsaved changes.
 - [ ] T5 A-06 Rename client.
@@ -32,7 +32,9 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 ## Progress / evidence
 - T0 (inline in writer): audit copied to `docs/UX-CRAFT-AUDIT.md`; only the 3 screenshots cited by A-01..A-09 copied (`22-accent-search-1440-light.png`, `23-overpay-1440-light.png`, `03-tanda-open-sched-375-light.png`, ~316 KB); other screenshot references became "(captura no incluida)"; no absolute scratchpad paths. Baseline: unit 203/203 (one timeout flake seen under load avg ~30, green on rerun), type-check ok, lint ok. Commit `636a409`.
 
-- T1 (delegated writer): `shared/domain/text.ts` (`foldText`, `matchesQuery`, `findNearMatch`) + tests; Combobox filters on folded text, treats a folded-equal name as existing (no Create row), lists folded partial matches ("jose" → "José Hernández") above "+ Create", and shows "Did you mean <name>?" (selects the existing option, Create stays available) for a near match the query does not literally contain (an existing folded name that is a whole-word prefix of the query, e.g. "Ana Lopez Garcia" → "Ana López"). Decision: no "Did you mean" row for names already listed as matches, to avoid duplicate rows on every prefix search (e2e types "Marí"/"An"). RED: 4 Combobox tests failed before implementation. Checks: unit 215/215, type-check ok, lint ok. Commit: see T2 entry.
+- T1 (delegated writer): `shared/domain/text.ts` (`foldText`, `matchesQuery`, `findNearMatch`) + tests; Combobox filters on folded text, treats a folded-equal name as existing (no Create row), lists folded partial matches ("jose" → "José Hernández") above "+ Create", and shows "Did you mean <name>?" (selects the existing option, Create stays available) for a near match the query does not literally contain (an existing folded name that is a whole-word prefix of the query, e.g. "Ana Lopez Garcia" → "Ana López"). Decision: no "Did you mean" row for names already listed as matches, to avoid duplicate rows on every prefix search (e2e types "Marí"/"An"). RED: 4 Combobox tests failed before implementation. Checks: unit 215/215, type-check ok, lint ok. Commit `04b179c`.
+
+- T2: removed the teleported full-screen `.combo-backdrop`; the list closes on input blur (focus leaving the field) and on a capture-phase `document` `pointerdown` outside the input and list (registered only while open, never `preventDefault`), so the first tap on another control lands. The list now opens on click/typing/arrows instead of on focus, so programmatic focus (focus returning from a dialog, focus after adding a line) no longer reopens it. Escape still closes only the list. RED: 4 of 5 new dismissal tests failed before. Checks: unit 221/221, type-check ok, lint ok. Commit: see T3 entry.
 
 ## Next step
-T2.
+T3.

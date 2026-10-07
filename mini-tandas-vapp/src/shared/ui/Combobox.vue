@@ -60,8 +60,24 @@ async function positionList() {
   }
 }
 
+/**
+ * Dismissal without a backdrop: a press anywhere outside the field and its
+ * list closes the list and still reaches whatever was pressed (no
+ * preventDefault), so the first tap on another control works.
+ */
+function onDocumentPointerDown(event: Event) {
+  const target = event.target as Node | null
+  if (target && (root.value?.contains(target) || listEl.value?.contains(target))) return
+  closeList()
+}
+
 watch(open, (value) => {
-  if (value) positionList()
+  if (value) {
+    positionList()
+    document.addEventListener('pointerdown', onDocumentPointerDown, true)
+  } else {
+    document.removeEventListener('pointerdown', onDocumentPointerDown, true)
+  }
 })
 
 function onViewportChange() {
@@ -73,6 +89,7 @@ window.addEventListener('scroll', onViewportChange, true)
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onViewportChange)
   window.removeEventListener('scroll', onViewportChange, true)
+  document.removeEventListener('pointerdown', onDocumentPointerDown, true)
 })
 
 const selected = computed(() => props.options.find((o) => o.value === props.modelValue) ?? null)
@@ -216,7 +233,12 @@ function onInput() {
   if (props.modelValue) emit('update:modelValue', '')
 }
 
+/**
+ * Focus leaving the field closes the list. Presses inside the list keep focus
+ * on the input (mousedown is prevented there), so they never get here.
+ */
 function onBlur() {
+  closeList()
   // If the text no longer matches the selection, drop it.
   if (props.modelValue && query.value !== selected.value?.label) {
     query.value = selected.value?.label ?? ''
@@ -236,11 +258,10 @@ function clear() {
   emit('update:modelValue', '')
 }
 
-/** Focus the input for typing continuity without dropping the open backdrop
- *  over the page (the focus event would otherwise open the list). */
+/** Focus the input for typing continuity; the list stays closed until the
+ *  user types, clicks or presses an arrow key. */
 function focus() {
   root.value?.querySelector('input')?.focus()
-  open.value = false
 }
 
 defineExpose({ clear, focus })
@@ -262,7 +283,7 @@ defineExpose({ clear, focus })
       :placeholder="placeholder"
       autocomplete="off"
       @input="onInput"
-      @focus="openList"
+      @click="openList"
       @blur="onBlur"
       @keydown.escape="onEscape"
       @keydown.down.prevent="onArrow(1)"
@@ -270,7 +291,6 @@ defineExpose({ clear, focus })
       @keydown.enter="onEnter"
     />
     <Teleport to="body">
-      <div v-if="open" class="combo-backdrop" @click="closeList" @mousedown.prevent />
       <!-- Kept in the DOM (v-show) so the input's aria-controls always resolves. -->
       <div
         v-show="open"
@@ -319,12 +339,6 @@ defineExpose({ clear, focus })
 <style scoped>
 .combo {
   position: relative;
-}
-
-.combo-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
 }
 
 .combo-list {
