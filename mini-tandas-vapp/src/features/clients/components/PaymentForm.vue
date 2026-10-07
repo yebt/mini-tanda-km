@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { formatMoney } from '@shared/db/format'
-import { parseMoneyInput } from '@shared/db/money'
+import { fromCents, parseMoneyInput, toCents } from '@shared/db/money'
 import { useClientsStore } from '@shared/stores/clients'
 import { useTandasStore } from '@shared/stores/tandas'
 import type { SaleWithDetails } from '@shared/db/types'
@@ -57,6 +57,84 @@ function saleLabel(sale: SaleWithDetails): string {
   return `${prefix} — ${formatMoney(sale.balance)} pending`
 }
 
+const targetSale = computed(
+  () => unpaidSales.value.find((sale) => sale.id === targetSaleId.value) ?? null,
+)
+
+/**
+ * A payment toward a sale that is larger than what the sale still owes (a
+ * slipped zero turns $500 into $5,000). Null when there is nothing to warn
+ * about: no sale picked (a general payment is always credit), or an amount
+ * that is missing, invalid or within the balance.
+ */
+const overpay = computed(() => {
+  const sale = targetSale.value
+  const value = parseMoneyInput(amount.value)
+  if (!sale || value === null || Number.isNaN(value) || value <= 0) return null
+  const excessCents = toCents(value) - toCents(sale.balance)
+  if (excessCents <= 0) return null
+  return { sale, amount: value, balance: sale.balance, excess: fromCents(excessCents) }
+})
+
+const overpayId = 'payment-amount-overpay'
+const describedBy = computed(
+  () =>
+    [error.value ? 'payment-amount-error' : null, overpay.value ? overpayId : null]
+      .filter(Boolean)
+      .join(' ') || undefined,
+)
+
+const applyButton = ref<HTMLButtonElement | null>(null)
+
+/** "Apply $120.00": pay exactly what the sale owes. */
+function applyBalance(): void {
+  if (!overpay.value) return
+  amount.value = overpay.value.balance.toFixed(2)
+  amountInput.value?.focus()
+}
+
+function resetFields(): void {
+  amount.value = ''
+  note.value = ''
+}
+
+/**
+ * "Record as credit": the sale is paid in full and the excess becomes a
+ * general payment (abono), so the sale shows Paid instead of a negative
+ * balance while the client's combined balance carries the credit. One Undo
+ * removes both payments.
+ */
+function recordWithCredit(): void {
+  const over = overpay.value
+  if (!over) return
+  const noteValue = note.value.trim() === '' ? null : note.value.trim()
+  const saleIdPaid = clientsStore.pay({
+    clientId: props.clientId,
+    saleId: over.sale.id,
+    amount: over.balance,
+    note: noteValue,
+  })
+  const creditId = clientsStore.pay({
+    clientId: props.clientId,
+    saleId: null,
+    amount: over.excess,
+    note: noteValue,
+  })
+  resetFields()
+  notify(
+    `Payment of ${formatMoney(over.amount)} recorded: ${formatMoney(over.balance)} to the sale, ${formatMoney(over.excess)} as credit.`,
+    {
+      action: {
+        label: 'Undo',
+        run: () => {
+          clientsStore.removePayment(creditId)
+          clientsStore.removePayment(saleIdPaid)
+        },
+      },
+    },
+  )
+}
+
 function reject(message: string): void {
   error.value = message
   amountInput.value?.focus()
@@ -77,14 +155,18 @@ function submit(): void {
     reject('Amount must be greater than zero.')
     return
   }
+  // Above the sale balance: the inline notice asks how to apply it.
+  if (overpay.value) {
+    applyButton.value?.focus()
+    return
+  }
   const id = clientsStore.pay({
     clientId: props.clientId,
     saleId: targetSaleId.value === '' ? null : targetSaleId.value,
     amount: value,
     note: note.value.trim() === '' ? null : note.value.trim(),
   })
-  amount.value = ''
-  note.value = ''
+  resetFields()
   notify(`Payment of ${formatMoney(value)} recorded.`, {
     action: { label: 'Undo', run: () => clientsStore.removePayment(id) },
   })
@@ -106,9 +188,24 @@ function submit(): void {
         autocomplete="off"
         placeholder="e.g. 150.00…"
         :aria-invalid="error ? 'true' : undefined"
-        :aria-describedby="error ? 'payment-amount-error' : undefined"
+        :aria-describedby="describedBy"
       />
       <p v-if="error" id="payment-amount-error" class="error-text" role="alert">{{ error }}</p>
+      <div v-else-if="overpay" :id="overpayId" class="warning-text overpay" role="status">
+        <p class="overpay-message">
+          This sale only owes {{ formatMoney(overpay.balance) }}. Recording
+          {{ formatMoney(overpay.amount) }} pays it in full and keeps
+          {{ formatMoney(overpay.excess) }} as credit for the client.
+        </p>
+        <div class="row-wrap overpay-actions">
+          <button ref="applyButton" type="button" class="btn apply-balance" @click="applyBalance">
+            Apply {{ formatMoney(overpay.balance) }}
+          </button>
+          <button type="button" class="btn record-credit" @click="recordWithCredit">
+            Record as credit
+          </button>
+        </div>
+      </div>
     </div>
     <div class="field">
       <label class="label" for="payment-target">Apply to</label>
@@ -138,5 +235,13 @@ function submit(): void {
 <style scoped>
 .payment-form {
   max-width: 420px;
+}
+
+.overpay-message {
+  margin: 0 0 var(--space-2);
+}
+
+.overpay-actions {
+  gap: var(--space-2);
 }
 </style>
