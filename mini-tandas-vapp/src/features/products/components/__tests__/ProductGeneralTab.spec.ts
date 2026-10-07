@@ -72,3 +72,30 @@ describe('ProductGeneralTab photo picker', () => {
     wrapper.unmount()
   })
 })
+
+describe('ProductGeneralTab price mode', () => {
+  it('is a native radio group in a fieldset, each option named by its title', async () => {
+    const wrapper = mountTab()
+    const fieldset = wrapper.get('fieldset')
+    expect(fieldset.get('legend').text()).toBe('Price mode')
+
+    const radios = fieldset.findAll<HTMLInputElement>('input[type="radio"]')
+    expect(radios).toHaveLength(2)
+    const names = radios.map((radio) => {
+      const ids = radio.attributes('aria-labelledby')!.split(' ')
+      return ids.map((id) => document.getElementById(id)?.textContent?.trim()).join(' ')
+    })
+    expect(names).toEqual(['Global price', 'Price per SKU'])
+    for (const radio of radios) {
+      const desc = document.getElementById(radio.attributes('aria-describedby')!)
+      expect(desc?.textContent?.trim()).toBeTruthy()
+    }
+
+    expect(radios[0]!.element.checked).toBe(true)
+    expect(wrapper.find('#product-price').exists()).toBe(true)
+    await radios[1]!.setValue(true)
+    expect(radios[1]!.element.checked).toBe(true)
+    expect(wrapper.find('#product-price').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})

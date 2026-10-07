@@ -23,6 +23,15 @@ const store = useProductsStore()
 
 const MAX_PHOTO_BYTES = 1024 * 1024
 
+const PRICE_MODES: { value: PriceMode; title: string; description: string }[] = [
+  { value: 'global', title: 'Global price', description: 'One price for the whole product' },
+  {
+    value: 'per_sku',
+    title: 'Price per SKU',
+    description: 'A price for each variation combination',
+  },
+]
+
 const name = ref('')
 const description = ref('')
 const photo = ref<string | null>(null)
@@ -213,19 +222,30 @@ async function submit() {
       </p>
     </div>
 
-    <div class="field">
-      <span class="label">Price mode</span>
-      <label class="radio-option">
-        <input v-model="priceMode" type="radio" value="global" />
-        <span> Global price <span class="muted">— one price for the whole product</span> </span>
-      </label>
-      <label class="radio-option">
-        <input v-model="priceMode" type="radio" value="per_sku" />
-        <span>
-          Price per SKU <span class="muted">— a price for each variation combination</span>
-        </span>
-      </label>
-    </div>
+    <fieldset class="choice-group">
+      <legend class="label">Price mode</legend>
+      <div class="choice-grid">
+        <label v-for="mode in PRICE_MODES" :key="mode.value" class="choice-card">
+          <input
+            v-model="priceMode"
+            type="radio"
+            name="price-mode"
+            class="choice-input"
+            :value="mode.value"
+            :aria-labelledby="`price-mode-${mode.value}-title`"
+            :aria-describedby="`price-mode-${mode.value}-desc`"
+          />
+          <span class="choice-text">
+            <span :id="`price-mode-${mode.value}-title`" class="choice-title">
+              {{ mode.title }}
+            </span>
+            <span :id="`price-mode-${mode.value}-desc`" class="choice-desc">
+              {{ mode.description }}
+            </span>
+          </span>
+        </label>
+      </div>
+    </fieldset>
 
     <div v-if="priceMode === 'global'" class="field price-field">
       <label class="label" for="product-price">Price</label>
@@ -328,18 +348,6 @@ async function submit() {
 .photo-hint {
   margin: var(--space-2) 0 0;
   font-size: 0.8rem;
-}
-
-.radio-option {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-  padding: var(--space-1) 0;
-  cursor: pointer;
-}
-
-.radio-option input {
-  margin-top: 0.2rem;
 }
 
 .price-field {

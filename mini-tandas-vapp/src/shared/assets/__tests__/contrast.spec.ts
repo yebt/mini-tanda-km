@@ -39,6 +39,9 @@ describe.each(Object.entries(themes))('%s theme tokens', (_theme, t) => {
     ['neutral-ink', 'neutral-soft'],
     ['on-danger', 'danger'],
     ['on-danger', 'danger-hover'],
+    // Selected choice cards: title and description on the soft primary fill.
+    ['ink', 'primary-soft'],
+    ['ink-soft', 'primary-soft'],
   ])('text %s on %s is >= 4.5:1', (ink, background) => {
     expect(contrast(t[ink]!, t[background]!)).toBeGreaterThanOrEqual(4.5)
   })
@@ -48,6 +51,9 @@ describe.each(Object.entries(themes))('%s theme tokens', (_theme, t) => {
     ['control-border', 'bg'],
     ['focus-ring', 'surface'],
     ['focus-ring', 'bg'],
+    // Selected choice card border and radio dot.
+    ['primary', 'primary-soft'],
+    ['focus-ring', 'primary-soft'],
   ])('%s against %s is >= 3:1', (token, background) => {
     expect(contrast(t[token]!, t[background]!)).toBeGreaterThanOrEqual(3)
   })
