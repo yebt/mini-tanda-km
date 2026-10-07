@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, useTemplateRef, watch } from 'vue'
 
 import { useProductsStore } from '@shared/stores/products'
 import type { Product } from '@shared/db/types'
@@ -31,7 +31,8 @@ function onTabChange(value: string) {
   activeTab.value = value === 'variations' ? 'variations' : 'general'
 }
 
-const activeTab = ref<Tab>('general')
+/** Active section; the editor page keeps it in the URL (`v-model:tab`). */
+const activeTab = defineModel<Tab>('tab', { default: 'general' })
 /** Id of the product currently held by the form (set on first save). */
 const savedId = ref<string | null>(props.initial?.id ?? null)
 
@@ -58,12 +59,24 @@ function onSaved(id: string) {
   if (isNew) activeTab.value = 'variations'
   emit('saved', id)
 }
+
+const generalTab = useTemplateRef<{ hasUnsavedChanges: () => boolean }>('generalTab')
+
+/**
+ * Edits in the General tab that leaving would lose. Variations and prices
+ * apply immediately, so they never count.
+ */
+function hasUnsavedChanges(): boolean {
+  return generalTab.value?.hasUnsavedChanges() ?? false
+}
+
+defineExpose({ hasUnsavedChanges })
 </script>
 
 <template>
   <div class="card product-form">
     <div class="row-between form-head">
-      <h2>{{ savedId ? 'Edit product' : 'New product' }}</h2>
+      <h1>{{ savedId ? 'Edit product' : 'New product' }}</h1>
       <!-- Always-visible exit once the product exists (variations apply instantly). -->
       <button v-if="savedId" type="button" class="btn" @click="emit('cancel')">Done</button>
     </div>
@@ -83,6 +96,7 @@ function onSaved(id: string) {
     >
       <ProductGeneralTab
         v-if="activeTab === 'general'"
+        ref="generalTab"
         :initial="initial"
         @saved="onSaved"
         @cancel="emit('cancel')"
@@ -101,7 +115,7 @@ function onSaved(id: string) {
   margin-bottom: var(--space-3);
 }
 
-.form-head h2 {
+.form-head h1 {
   margin-bottom: 0;
 }
 </style>

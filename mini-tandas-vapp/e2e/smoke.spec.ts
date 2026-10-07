@@ -7,7 +7,7 @@ test('full journey: product priced by one variation → client → scheduled tan
 
   // ── Product priced by SIZE only ────────────────────────────────────────
   await page.getByRole('link', { name: 'Products', exact: true }).click()
-  await page.getByRole('button', { name: 'New product' }).click()
+  await page.getByRole('link', { name: 'New product' }).click()
   await page.locator('#product-name').fill('Cake')
   await page.getByRole('radio', { name: /Price per SKU/i }).check()
   await page.locator('button[type="submit"].btn-primary').click()
@@ -77,7 +77,7 @@ test('anticipated tanda: stock in open, sales open once ready', async ({ page })
 
   // ── Priced product ─────────────────────────────────────────────────────
   await page.getByRole('link', { name: 'Products', exact: true }).click()
-  await page.getByRole('button', { name: 'New product' }).click()
+  await page.getByRole('link', { name: 'New product' }).click()
   await page.locator('#product-name').fill('Cookie')
   await page.getByRole('radio', { name: /Price per SKU/i }).check()
   await page.locator('button[type="submit"].btn-primary').click()
@@ -143,7 +143,7 @@ test('product without variations: one global price, stocked and sold', async ({ 
   await page.goto('/')
 
   await page.getByRole('link', { name: 'Products', exact: true }).click()
-  await page.getByRole('button', { name: 'New product' }).click()
+  await page.getByRole('link', { name: 'New product' }).click()
   await page.locator('#product-name').fill('Cookies box')
   await page.locator('#product-price').fill('120')
   await page.locator('button[type="submit"].btn-primary').click()

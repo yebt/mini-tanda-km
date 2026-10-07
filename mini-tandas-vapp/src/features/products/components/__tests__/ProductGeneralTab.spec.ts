@@ -99,3 +99,37 @@ describe('ProductGeneralTab price mode', () => {
     wrapper.unmount()
   })
 })
+
+describe('ProductGeneralTab unsaved changes', () => {
+  type Exposed = { hasUnsavedChanges: () => boolean }
+
+  it('is clean when opened and dirty after typing a name', async () => {
+    const wrapper = mountTab()
+    const vm = wrapper.vm as unknown as Exposed
+    expect(vm.hasUnsavedChanges()).toBe(false)
+    await wrapper.get('#product-name').setValue('Cake')
+    expect(vm.hasUnsavedChanges()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('tracks edits against the saved product and is clean again after saving', async () => {
+    const { useProductsStore } = await import('@shared/stores/products')
+    const store = useProductsStore()
+    const id = store.saveProduct({ name: 'Bread', description: null, priceMode: 'global', price: 10 })
+    const product = store.catalog.find((entry) => entry.product.id === id)!.product
+    const wrapper = mount(ProductGeneralTab, { props: { initial: product }, attachTo: document.body })
+    const vm = wrapper.vm as unknown as Exposed
+    expect(vm.hasUnsavedChanges()).toBe(false)
+
+    await wrapper.get('#product-description').setValue('Fresh')
+    expect(vm.hasUnsavedChanges()).toBe(true)
+    await wrapper.get('#product-description').setValue('')
+    expect(vm.hasUnsavedChanges()).toBe(false)
+
+    await wrapper.get('#product-name').setValue('Bread loaf')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(vm.hasUnsavedChanges()).toBe(false)
+    wrapper.unmount()
+  })
+})

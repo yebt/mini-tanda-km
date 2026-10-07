@@ -48,6 +48,26 @@ const photoError = ref('')
 const nameInput = useTemplateRef<HTMLInputElement>('nameInput')
 const priceInput = useTemplateRef<HTMLInputElement>('priceInput')
 
+/** The general fields as they would be saved, to detect unsaved edits. */
+function snapshot(): string {
+  return JSON.stringify([
+    name.value.trim(),
+    description.value.trim(),
+    priceMode.value,
+    priceMode.value === 'global' ? price.value.trim() : '',
+  ])
+}
+
+/** Snapshot of the last loaded or saved values. */
+let baseline = ''
+
+/** True when the form holds edits that leaving would lose. */
+function hasUnsavedChanges(): boolean {
+  return photoChanged.value || snapshot() !== baseline
+}
+
+defineExpose({ hasUnsavedChanges })
+
 watch(
   () => props.initial,
   (product) => {
@@ -62,6 +82,7 @@ watch(
     nameError.value = ''
     priceError.value = ''
     photoError.value = ''
+    baseline = snapshot()
   },
   { immediate: true },
 )
@@ -142,6 +163,8 @@ async function submit() {
     priceMode: priceMode.value,
     price: priceMode.value === 'global' ? parsedPrice : null,
   })
+  baseline = snapshot()
+  photoChanged.value = false
   notify(isNew ? `"${trimmedName}" created.` : `"${trimmedName}" saved.`)
   emit('saved', id)
 }
