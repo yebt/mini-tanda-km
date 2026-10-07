@@ -372,6 +372,16 @@ a {
   margin: var(--space-2) 0;
 }
 
+/* Inline "are you sure?" notice next to a field: not an error, still read first. */
+.warning-text {
+  background: var(--color-warning-soft);
+  color: var(--color-warning-ink);
+  border-radius: var(--radius-small);
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.85rem;
+  margin: var(--space-2) 0;
+}
+
 .empty-state {
   text-align: center;
   color: var(--color-ink-soft);

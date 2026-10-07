@@ -10,6 +10,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  rename: []
   remove: []
 }>()
 
@@ -26,7 +27,7 @@ const balanceLabel = computed(() =>
         <h1>{{ summary.name }}</h1>
         <span class="muted">Client since {{ formatDate(summary.createdAt) }}</span>
       </div>
-      <ActionMenu :show-edit="false" @remove="emit('remove')" />
+      <ActionMenu edit-label="Rename" @edit="emit('rename')" @remove="emit('remove')" />
     </div>
     <div class="row-wrap summary-stats">
       <div class="stat">

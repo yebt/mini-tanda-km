@@ -10,10 +10,12 @@ import {
   deletePayment,
   listClients,
   listPayments,
+  renameClient as renameClientRow,
   type PaymentInput,
 } from '@shared/db/repos/clients'
 import { listSalesForClient } from '@shared/db/repos/tandas'
 import type { ClientSummary, PaymentWithContext, SaleWithDetails } from '@shared/db/types'
+import { foldText } from '@shared/domain/text'
 
 export const useClientsStore = defineStore('clients', () => {
   const clients = computed<ClientSummary[]>(() => {
@@ -32,6 +34,23 @@ export const useClientsStore = defineStore('clients', () => {
 
   function addClient(name: string): string {
     return createClient(name)
+  }
+
+  /** Fix a typo in a client's name; sales and payments stay attached by id. */
+  function renameClient(id: string, name: string): { ok: true } | { ok: false; error: string } {
+    const value = name.trim()
+    if (value === '') return { ok: false, error: 'Enter a name.' }
+    renameClientRow(id, value)
+    return { ok: true }
+  }
+
+  /** Another client already called `name` (ignoring accents and case), or null. */
+  function nameTakenBy(name: string, exceptId: string): ClientSummary | null {
+    const folded = foldText(name)
+    return (
+      clients.value.find((client) => client.id !== exceptId && foldText(client.name) === folded) ??
+      null
+    )
   }
 
   /** Why a client cannot be deleted (checked before asking to confirm), or null. */
@@ -75,6 +94,8 @@ export const useClientsStore = defineStore('clients', () => {
     receivables,
     totalOwed,
     addClient,
+    renameClient,
+    nameTakenBy,
     removalBlocker,
     removeClient,
     summaryFor,

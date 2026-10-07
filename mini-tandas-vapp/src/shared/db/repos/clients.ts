@@ -50,6 +50,10 @@ export function createClient(name: string): string {
   return id
 }
 
+export function renameClient(id: string, name: string): void {
+  run('UPDATE clients SET name = ? WHERE id = ?', [name, id])
+}
+
 export function deleteClient(id: string): void {
   run('DELETE FROM clients WHERE id = ?', [id])
 }

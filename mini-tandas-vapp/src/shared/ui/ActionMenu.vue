@@ -11,8 +11,10 @@ const props = withDefaults(
     showRemove?: boolean
     /** Show a "Record payment" item. Default false. */
     showPay?: boolean
+    /** Label of the edit item (e.g. "Rename" when only the name can change). */
+    editLabel?: string
   }>(),
-  { showEdit: true, showRemove: true, showPay: false },
+  { showEdit: true, showRemove: true, showPay: false, editLabel: 'Edit' },
 )
 
 const emit = defineEmits<{
@@ -139,7 +141,7 @@ function onPay() {
         Record payment
       </button>
       <button v-if="props.showEdit" type="button" role="menuitem" tabindex="-1" class="menu-item" @click="onEdit">
-        Edit
+        {{ props.editLabel }}
       </button>
       <button
         v-if="props.showRemove"

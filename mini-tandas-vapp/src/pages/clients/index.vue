@@ -6,6 +6,7 @@ import { formatDate, formatMoney } from '@shared/db/format'
 import type { ClientSummary } from '@shared/db/types'
 import { useClientsStore } from '@shared/stores/clients'
 import ActionMenu from '@shared/ui/ActionMenu.vue'
+import RenameClientDialog from '@/features/clients/components/RenameClientDialog.vue'
 import { confirmDialog } from '@shared/ui/useConfirm'
 import { notify } from '@shared/ui/useToast'
 import { useIsMobile } from '@shared/ui/useMediaQuery'
@@ -19,6 +20,8 @@ const name = ref('')
 const nameInput = ref<HTMLInputElement | null>(null)
 const error = ref('')
 const actionError = ref('')
+/** Client whose name is being corrected in the rename dialog. */
+const renaming = ref<ClientSummary | null>(null)
 
 const sortedClients = computed(() =>
   [...clientsStore.clients].sort((a, b) =>
@@ -125,7 +128,11 @@ async function remove(client: ClientSummary): Promise<void> {
             {{ formatMoney(client.balance) }}
           </td>
           <td class="actions-col">
-            <ActionMenu :show-edit="false" @remove="remove(client)" />
+            <ActionMenu
+              edit-label="Rename"
+              @edit="renaming = client"
+              @remove="remove(client)"
+            />
           </td>
         </tr>
       </tbody>
@@ -145,11 +152,13 @@ async function remove(client: ClientSummary): Promise<void> {
             <span class="muted">owed</span>
           </div>
         </RouterLink>
-        <ActionMenu :show-edit="false" @remove="remove(client)" />
+        <ActionMenu edit-label="Rename" @edit="renaming = client" @remove="remove(client)" />
       </li>
     </ul>
     <p v-if="actionError" class="error-text" role="alert">{{ actionError }}</p>
   </section>
+
+  <RenameClientDialog v-if="renaming" :client="renaming" @close="renaming = null" />
 </template>
 
 <style scoped>

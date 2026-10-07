@@ -6,6 +6,7 @@ import ClientSalesList from '@/features/clients/components/ClientSalesList.vue'
 import ClientSummaryCard from '@/features/clients/components/ClientSummaryCard.vue'
 import PaymentForm from '@/features/clients/components/PaymentForm.vue'
 import PaymentList from '@/features/clients/components/PaymentList.vue'
+import RenameClientDialog from '@/features/clients/components/RenameClientDialog.vue'
 import { useClientsStore } from '@shared/stores/clients'
 import { confirmDialog } from '@shared/ui/useConfirm'
 import { usePageTitle } from '@shared/ui/usePageTitle'
@@ -21,6 +22,7 @@ const summary = computed(() => clientsStore.summaryFor(route.params.id))
 usePageTitle(() => summary.value?.name)
 
 const actionError = ref('')
+const renaming = ref(false)
 
 async function remove(): Promise<void> {
   if (!summary.value) return
@@ -43,7 +45,8 @@ async function remove(): Promise<void> {
     Client not found. <RouterLink to="/clients">Back to clients</RouterLink>
   </p>
   <template v-else>
-    <ClientSummaryCard :summary="summary" @remove="remove" />
+    <ClientSummaryCard :summary="summary" @rename="renaming = true" @remove="remove" />
+    <RenameClientDialog v-if="renaming" :client="summary" @close="renaming = false" />
     <p v-if="actionError" class="error-text" role="alert">{{ actionError }}</p>
 
     <section class="card">
