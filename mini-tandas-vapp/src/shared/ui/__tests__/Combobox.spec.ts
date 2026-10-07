@@ -11,7 +11,9 @@ const OPTIONS: ComboOption[] = [
 
 let wrapper: VueWrapper | null = null
 
-function mountCombo(props: Partial<{ modelValue: string; allowCreate: boolean }> = {}) {
+function mountCombo(
+  props: Partial<{ modelValue: string; allowCreate: boolean; options: ComboOption[] }> = {},
+) {
   wrapper = mount(Combobox, {
     props: { modelValue: '', options: OPTIONS, inputId: 'combo', ...props },
     attachTo: document.body,
@@ -129,5 +131,54 @@ describe('Combobox (WAI-ARIA combobox pattern)', () => {
     })
     el.dispatchEvent(whileClosed)
     expect(whileClosed.defaultPrevented).toBe(false)
+  })
+})
+
+describe('Combobox search', () => {
+  const CLIENTS: ComboOption[] = [
+    { value: 'jose', label: 'José Hernández' },
+    { value: 'ana', label: 'Ana López' },
+  ]
+
+  it('matches ignoring accents and case', async () => {
+    const combo = mountCombo({ options: CLIENTS })
+    await combo.get('input').setValue('JOSE')
+    const labels = optionEls().map((option) => option.textContent?.trim())
+    expect(labels).toEqual(['José Hernández'])
+  })
+
+  it('treats an accent-insensitive exact name as existing (no "Create" row)', async () => {
+    const combo = mountCombo({ options: CLIENTS, allowCreate: true })
+    await combo.get('input').setValue('jose hernandez')
+    expect(listbox().textContent).not.toContain('Create')
+  })
+
+  it('lists an accent-insensitive partial match above "Create"', async () => {
+    const combo = mountCombo({ options: CLIENTS, allowCreate: true })
+    await combo.get('input').setValue('jose')
+    const rows = optionEls().map((option) => option.textContent?.trim())
+    expect(rows).toEqual(['José Hernández', '+ Create "jose"'])
+  })
+
+  it('picks the existing client from the "Did you mean" row', async () => {
+    const combo = mountCombo({ options: CLIENTS, allowCreate: true })
+    await combo.get('input').setValue('Ana Lopez Garcia')
+    optionEls()[0]!.click()
+    await combo.vm.$nextTick()
+    expect(combo.emitted('update:modelValue')).toContainEqual(['ana'])
+    expect(combo.emitted('create')).toBeUndefined()
+  })
+
+  it('suggests a client whose name is a word prefix of the query, keeping create available', async () => {
+    const combo = mountCombo({ options: CLIENTS, allowCreate: true })
+    const input = combo.get('input')
+    await input.setValue('Ana Lopez Garcia')
+    const rows = optionEls().map((option) => option.textContent?.trim())
+    expect(rows).toEqual(['Did you mean Ana López?', '+ Create "Ana Lopez Garcia"'])
+
+    // Create stays reachable from the keyboard.
+    await input.trigger('keydown', { key: 'ArrowUp' })
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(combo.emitted('create')).toEqual([['Ana Lopez Garcia']])
   })
 })

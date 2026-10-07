@@ -3,6 +3,8 @@ defineOptions({ name: 'SearchCombobox' })
 
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 
+import { findNearMatch, foldText, matchesQuery } from '@shared/domain/text'
+
 export interface ComboOption {
   value: string
   label: string
@@ -86,39 +88,56 @@ watch(
 
 const MAX_RESULTS = 20
 
-const filtered = computed(() => {
-  const q = query.value.trim().toLowerCase()
-  const matches = q ? props.options.filter((o) => o.label.toLowerCase().includes(q)) : props.options
-  return matches.slice(0, MAX_RESULTS)
+const foldedQuery = computed(() => foldText(query.value))
+
+const matches = computed(() => props.options.filter((o) => matchesQuery(o.label, query.value)))
+
+/** The query names an existing option (ignoring accents and case): nothing to create. */
+const exactMatch = computed(() => matches.value.some((o) => foldText(o.label) === foldedQuery.value))
+
+const showCreate = computed(
+  () => props.allowCreate === true && foldedQuery.value !== '' && !exactMatch.value,
+)
+
+/**
+ * An existing option the query probably means but does not literally contain
+ * ("Ana Lopez Garcia" → "Ana López"), offered as "Did you mean …?" right above
+ * "Create" so a near-duplicate is a deliberate choice. Options the query
+ * already matches ("jose" → "José Hernández") are listed above "Create" anyway.
+ */
+const suggestion = computed(() => {
+  if (!showCreate.value) return null
+  const listed = new Set(matches.value.map((o) => o.value))
+  return findNearMatch(
+    query.value,
+    props.options.filter((o) => !listed.has(o.value)),
+  )
 })
+
+const filtered = computed(() => matches.value.slice(0, MAX_RESULTS))
 
 // The dropdown height changes with the filtered results — keep it anchored.
 watch(filtered, () => {
   if (open.value) positionList()
 })
 
-const exactMatch = computed(() =>
-  filtered.value.some((o) => o.label.toLowerCase() === query.value.trim().toLowerCase()),
-)
+type Row =
+  | { id: string; kind: 'option'; option: ComboOption; disabled: boolean }
+  | { id: string; kind: 'suggest'; option: ComboOption; disabled: false }
+  | { id: string; kind: 'create'; option: null; disabled: false }
 
-const showCreate = computed(
-  () =>
-    props.allowCreate &&
-    query.value.trim() !== '' &&
-    !exactMatch.value &&
-    filtered.value.every((o) => o.label.toLowerCase() !== query.value.trim().toLowerCase()),
-)
-
-/** Every row of the listbox (options, then the optional "Create" row), with stable ids. */
-const items = computed(() => {
-  const rows: { id: string; option: ComboOption | null; disabled: boolean }[] = filtered.value.map(
-    (option, index) => ({
-      id: `${listId}-option-${index}`,
-      option,
-      disabled: option.disabled === true,
-    }),
-  )
-  if (showCreate.value) rows.push({ id: `${listId}-create`, option: null, disabled: false })
+/** Every row of the listbox (options, suggestion, then "Create"), with stable ids. */
+const items = computed<Row[]>(() => {
+  const rows: Row[] = filtered.value.map((option, index) => ({
+    id: `${listId}-option-${index}`,
+    kind: 'option',
+    option,
+    disabled: option.disabled === true,
+  }))
+  if (suggestion.value) {
+    rows.push({ id: `${listId}-suggest`, kind: 'suggest', option: suggestion.value, disabled: false })
+  }
+  if (showCreate.value) rows.push({ id: `${listId}-create`, kind: 'create', option: null, disabled: false })
   return rows
 })
 
@@ -169,8 +188,12 @@ function onEnter(event: KeyboardEvent) {
   if (!row) return
   event.preventDefault()
   event.stopPropagation()
-  if (row.option) pick(row.option)
-  else createFromQuery()
+  activateRow(row)
+}
+
+function activateRow(row: Row) {
+  if (row.kind === 'create') createFromQuery()
+  else pick(row.option)
 }
 
 /** Escape closes the list only; when it is already closed it reaches the dialog. */
@@ -259,38 +282,35 @@ defineExpose({ clear, focus })
         @mousedown.prevent
       >
         <div
-          v-for="(option, index) in filtered"
-          :id="items[index]?.id"
-          :key="option.value"
+          v-for="(row, index) in items"
+          :id="row.id"
+          :key="row.id"
           role="option"
           class="combo-option"
           :class="{
-            'is-selected': option.value === modelValue,
+            'is-selected': row.kind === 'option' && row.option.value === modelValue,
             'is-active': index === activeIndex,
-            'is-disabled': option.disabled,
+            'is-disabled': row.disabled,
+            'combo-suggest': row.kind === 'suggest',
+            'combo-create': row.kind === 'create',
           }"
-          :aria-selected="option.value === modelValue"
-          :aria-disabled="option.disabled || undefined"
-          @click="pick(option)"
+          :aria-selected="row.kind === 'option' && row.option.value === modelValue"
+          :aria-disabled="row.disabled || undefined"
+          @click="activateRow(row)"
         >
-          <span class="option-label">{{ option.label }}</span>
-          <span v-if="option.disabled && option.disabledReason" class="option-hint">
-            {{ option.disabledReason }}
-          </span>
-          <span v-else-if="option.hint" class="option-hint">{{ option.hint }}</span>
+          <template v-if="row.kind === 'create'">+ Create "{{ query.trim() }}"</template>
+          <template v-else-if="row.kind === 'suggest'">
+            <span class="option-label">Did you mean {{ row.option.label }}?</span>
+          </template>
+          <template v-else>
+            <span class="option-label">{{ row.option.label }}</span>
+            <span v-if="row.option.disabled && row.option.disabledReason" class="option-hint">
+              {{ row.option.disabledReason }}
+            </span>
+            <span v-else-if="row.option.hint" class="option-hint">{{ row.option.hint }}</span>
+          </template>
         </div>
-        <p v-if="filtered.length === 0 && !showCreate" class="combo-empty muted">No matches.</p>
-        <div
-          v-if="showCreate"
-          :id="`${listId}-create`"
-          role="option"
-          class="combo-option combo-create"
-          :class="{ 'is-active': activeIndex === filtered.length }"
-          :aria-selected="false"
-          @click="createFromQuery"
-        >
-          + Create "{{ query.trim() }}"
-        </div>
+        <p v-if="items.length === 0" class="combo-empty muted">No matches.</p>
       </div>
     </Teleport>
   </div>
@@ -370,6 +390,16 @@ defineExpose({ clear, focus })
 
 .combo-create {
   color: var(--color-primary);
+}
+
+/* The suggestion sits between the matches and "Create", set apart by a rule. */
+.combo-suggest:not(:first-child) {
+  margin-top: var(--space-1);
+  box-shadow: 0 -1px 0 var(--color-border);
+}
+
+.combo-suggest.is-active {
+  box-shadow: inset 0 0 0 2px var(--color-primary);
 }
 
 .combo-empty {
