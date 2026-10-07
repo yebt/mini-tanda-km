@@ -475,8 +475,9 @@ h2 {
   position: sticky;
   bottom: 0;
   z-index: 2;
-  margin: var(--space-4) calc(-1 * var(--space-6)) calc(-1 * var(--space-6));
-  padding: var(--space-3) var(--space-6) var(--space-4);
+  /* Bleeds to the card edges: offsets follow the card padding. */
+  margin: var(--space-4) calc(-1 * var(--pad-card)) calc(-1 * var(--pad-card));
+  padding: var(--space-3) var(--pad-card) var(--space-4);
   background: var(--color-bg);
   border-top: 1px solid var(--color-border);
   border-radius: 0 0 var(--radius) var(--radius);

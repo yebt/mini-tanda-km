@@ -133,7 +133,7 @@ async function removeOption(variation: Variation, option: VariationOption) {
 
 .variation-card {
   padding: var(--space-4);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--gap-grid);
   box-shadow: none;
 }
 

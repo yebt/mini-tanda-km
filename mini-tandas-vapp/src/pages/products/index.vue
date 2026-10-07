@@ -102,14 +102,6 @@ async function onRemove(product: Product) {
 </template>
 
 <style scoped>
-.page-header {
-  margin-bottom: var(--space-4);
-}
-
-.page-header h1 {
-  margin-bottom: 0;
-}
-
 .empty-state {
   display: block;
 }

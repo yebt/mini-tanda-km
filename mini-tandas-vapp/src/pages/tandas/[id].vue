@@ -141,6 +141,6 @@ function closeSaleDialog() {
 .sales-toolbar {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--gap-section);
 }
 </style>

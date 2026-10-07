@@ -92,7 +92,7 @@ function onKeydown(event: KeyboardEvent, index: number): void {
   display: flex;
   gap: var(--space-1);
   border-bottom: 1px solid var(--color-border);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--gap-section);
 }
 
 .tab {

@@ -96,7 +96,7 @@ const rows = computed<Row[]>(() =>
     </table>
   </div>
 
-  <div v-else class="product-list mobile-only">
+  <div v-else class="card-list mobile-only">
     <ProductCard
       v-for="item in items"
       :key="item.product.id"
@@ -182,12 +182,5 @@ tbody tr:last-child td {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.product-list {
-  display: grid;
-  /* minmax(0, …) so long price rows can't push the track past the viewport */
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-3);
 }
 </style>

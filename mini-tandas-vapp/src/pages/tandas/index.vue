@@ -51,7 +51,7 @@ function submit() {
 </script>
 
 <template>
-  <div class="row-between page-head">
+  <div class="row-between page-header">
     <h1>Tandas</h1>
     <button v-if="!showForm" class="btn btn-primary desktop-only" @click="openForm">
       New tanda
@@ -131,7 +131,7 @@ function submit() {
     </table>
   </div>
 
-  <div v-else class="mobile-only">
+  <div v-else class="card-list mobile-only">
     <RouterLink
       v-for="tanda in tandasStore.tandas"
       :key="tanda.id"
@@ -160,10 +160,6 @@ function submit() {
 </template>
 
 <style scoped>
-.page-head {
-  margin-bottom: var(--space-4);
-}
-
 .tanda-card {
   display: block;
   color: inherit;

@@ -130,7 +130,6 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-4);
 }
 
 @media (min-width: 721px) {

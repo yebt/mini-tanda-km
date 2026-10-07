@@ -106,8 +106,6 @@ const variationBadges = computed(() =>
   display: flex;
   gap: var(--space-3);
   align-items: flex-start;
-  margin-bottom: 0;
-  padding: var(--space-4);
   min-width: 0;
 }
 

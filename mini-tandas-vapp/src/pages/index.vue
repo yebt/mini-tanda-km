@@ -15,7 +15,7 @@ const nextActions = computed(() => tandasStore.activeTandas.slice(0, 5))
 </script>
 
 <template>
-  <h1 class="page-title">Dashboard</h1>
+  <h1 class="page-header">Dashboard</h1>
 
   <!-- "Next up" (the actionable item) comes first, ahead of the summary figures. -->
   <section class="card next-up">
@@ -47,14 +47,14 @@ const nextActions = computed(() => tandasStore.activeTandas.slice(0, 5))
     </ul>
   </section>
 
-  <div class="row-wrap dashboard-cards">
+  <div class="card-grid dashboard-cards">
     <section class="card stat-card">
       <h2 class="stat-label">Active tandas</h2>
       <p class="stat-value">{{ tandasStore.activeTandas.length }}</p>
       <RouterLink to="/tandas" class="btn btn-ghost">View tandas</RouterLink>
     </section>
 
-    <section class="card stat-card">
+    <section class="card stat-card stat-card-wide">
       <h2 class="stat-label">Owed by clients</h2>
       <p class="stat-value money" :class="{ 'money-negative': clientsStore.totalOwed > 0 }">
         {{ formatMoney(clientsStore.totalOwed) }}
@@ -71,20 +71,17 @@ const nextActions = computed(() => tandasStore.activeTandas.slice(0, 5))
 </template>
 
 <style scoped>
-.dashboard-cards {
-  margin-bottom: var(--space-4);
-}
-
-/* Mobile: the three figures share one compact row; the bottom nav already
-   links to each section, so the per-card links are dropped. */
+/* Mobile: the counts share one row and the amount owed gets a full row, so
+   cards keep the standard padding without breaking the amount mid-number.
+   The bottom nav already links to each section, so per-card links are dropped. */
 @media (max-width: 720px) {
   .dashboard-cards {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: row dense;
   }
 
-  .stat-card {
-    padding: var(--space-3) var(--space-2);
+  .stat-card-wide {
+    grid-column: 1 / -1;
   }
 
   .stat-value {
@@ -102,13 +99,7 @@ const nextActions = computed(() => tandasStore.activeTandas.slice(0, 5))
   }
 }
 
-.page-title {
-  margin-bottom: var(--space-4);
-}
-
 .stat-card {
-  flex: 1 1 180px;
-  margin-bottom: 0;
   text-align: center;
   display: flex;
   flex-direction: column;

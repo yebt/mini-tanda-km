@@ -41,6 +41,14 @@
   --space-4: 1rem;
   --space-6: 1.5rem;
   --space-8: 2rem;
+  /* Layout rhythm — use these instead of picking space steps per view.
+     --gap-section: between page sections (header, cards, tabs).
+     --gap-grid: between sibling cards in a grid, row or list; equal to the
+       section gap so card gutters match horizontally and vertically.
+     --pad-card: padding inside every card (smaller on mobile, see below). */
+  --gap-section: var(--space-4);
+  --gap-grid: var(--space-4);
+  --pad-card: var(--space-6);
 }
 
 /* ── Dark theme ────────────────────────────────────────────────────────── */
@@ -122,8 +130,39 @@ a {
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: var(--space-6);
-  margin-bottom: var(--space-4);
+  padding: var(--pad-card);
+  margin-bottom: var(--gap-section);
+}
+
+/* Sibling cards laid out side by side (wrapping into equal columns). */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--gap-grid);
+  margin-bottom: var(--gap-section);
+}
+
+/* Sibling cards stacked vertically (mobile card lists). minmax(0, …) keeps
+   long content from pushing the track past the viewport. */
+.card-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--gap-grid);
+  margin-bottom: var(--gap-section);
+}
+
+.card-grid > .card,
+.card-list > .card {
+  margin-bottom: 0;
+}
+
+/* Page heading row (title + primary action) above the first section. */
+.page-header {
+  margin-bottom: var(--gap-section);
+}
+
+.page-header h1 {
+  margin-bottom: 0;
 }
 
 .btn {
@@ -310,9 +349,10 @@ a {
   font-variant-numeric: tabular-nums;
 }
 
-/* Shared wrapper so every list table sits on the same card. */
+/* Shared wrapper so every list table sits on the same card. Cells add
+   --space-3 of their own, so cell text lines up with --pad-card. */
 .table-card {
-  padding: var(--space-3) var(--space-4);
+  padding: calc(var(--pad-card) / 2) calc(var(--pad-card) - var(--space-3));
 }
 
 .table-card .table tbody tr:last-child td {
@@ -349,6 +389,10 @@ a {
 }
 
 @media (max-width: 720px) {
+  :root {
+    --pad-card: var(--space-4);
+  }
+
   .desktop-only {
     display: none !important;
   }
