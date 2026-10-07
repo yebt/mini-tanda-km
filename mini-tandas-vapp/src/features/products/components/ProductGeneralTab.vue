@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, useTemplateRef, watch } from 'vue'
+import { computed, ref, useTemplateRef, watch } from 'vue'
+import { ImagePlus, Trash2 } from 'lucide-vue-next'
 
 import { parseMoneyInput } from '@shared/db/money'
 import { useProductsStore } from '@shared/stores/products'
@@ -56,11 +57,31 @@ watch(
   { immediate: true },
 )
 
+/** Hint and error both describe the file input. */
+const photoDescribedBy = computed(() =>
+  photoError.value ? 'product-photo-hint product-photo-error' : 'product-photo-hint',
+)
+/** True while an image is dragged over the preview tile. */
+const dragging = ref(false)
+
 function onPhotoChange(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   input.value = ''
-  if (!file) return
+  if (file) acceptPhoto(file)
+}
+
+function onPhotoDrop(event: DragEvent) {
+  dragging.value = false
+  const file = event.dataTransfer?.files[0]
+  if (file) acceptPhoto(file)
+}
+
+function acceptPhoto(file: File) {
+  if (!file.type.startsWith('image/')) {
+    photoError.value = 'That file is not an image — choose a JPG, PNG or WebP.'
+    return
+  }
   if (file.size > MAX_PHOTO_BYTES) {
     photoError.value = 'Image is larger than 1 MB — choose a smaller file.'
     return
@@ -145,19 +166,48 @@ async function submit() {
 
     <div class="field">
       <label class="label" for="product-photo">Photo</label>
-      <div v-if="photo" class="row photo-preview">
-        <img :src="photo" alt="Product photo preview" width="56" height="56" decoding="async" />
-        <button type="button" class="btn btn-ghost" @click="removePhoto">Remove photo</button>
+      <div class="photo-picker">
+        <div
+          class="photo-tile"
+          :class="{ 'is-empty': !photo, 'is-dragging': dragging }"
+          @dragover.prevent="dragging = true"
+          @dragleave="dragging = false"
+          @drop.prevent="onPhotoDrop"
+        >
+          <img
+            v-if="photo"
+            :src="photo"
+            alt="Product photo preview"
+            width="72"
+            height="72"
+            decoding="async"
+          />
+          <ImagePlus v-else :size="26" :stroke-width="1.75" aria-hidden="true" />
+        </div>
+        <div class="photo-body">
+          <div class="photo-actions">
+            <input
+              id="product-photo"
+              type="file"
+              accept="image/*"
+              class="photo-input visually-hidden"
+              :aria-invalid="photoError ? 'true' : undefined"
+              :aria-describedby="photoDescribedBy"
+              @change="onPhotoChange"
+            />
+            <label for="product-photo" class="btn photo-choose">
+              {{ photo ? 'Change photo' : 'Choose photo' }}
+            </label>
+            <button v-if="photo" type="button" class="btn btn-ghost photo-remove" @click="removePhoto">
+              <Trash2 :size="16" aria-hidden="true" />
+              Remove<span class="visually-hidden"> photo</span>
+            </button>
+          </div>
+          <p id="product-photo-hint" class="muted photo-hint">
+            JPG, PNG or WebP · up to 1 MB
+          </p>
+        </div>
       </div>
-      <input
-        id="product-photo"
-        type="file"
-        accept="image/*"
-        class="input"
-        :aria-invalid="photoError ? 'true' : undefined"
-        :aria-describedby="photoError ? 'product-photo-error' : undefined"
-        @change="onPhotoChange"
-      />
       <p v-if="photoError" id="product-photo-error" class="error-text" role="alert">
         {{ photoError }}
       </p>
@@ -207,16 +257,77 @@ async function submit() {
 </template>
 
 <style scoped>
-.photo-preview {
-  margin-bottom: var(--space-2);
+/* ── Photo picker: preview tile + choose/change + remove ──────────────── */
+.photo-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
 }
 
-.photo-preview img {
-  width: 56px;
-  height: 56px;
+.photo-tile {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
   border-radius: var(--radius);
-  object-fit: cover;
   border: 1px solid var(--color-border);
+  overflow: hidden;
+  background: var(--color-bg);
+  color: var(--color-ink-soft);
+  transition:
+    border-color 0.15s ease-out,
+    background-color 0.15s ease-out;
+}
+
+.photo-tile.is-empty {
+  border: 1.5px dashed var(--color-control-border);
+}
+
+.photo-tile.is-dragging {
+  border: 1.5px dashed var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-ink);
+}
+
+.photo-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-body {
+  min-width: 0;
+}
+
+.photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The visible "button" is the input's label; it shows the input's focus. */
+.photo-input:focus-visible + .photo-choose {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.photo-choose {
+  border-color: var(--color-control-border);
+}
+
+.photo-remove {
+  color: var(--color-ink-soft);
+}
+
+.photo-remove:hover {
+  color: var(--color-danger);
+}
+
+.photo-hint {
+  margin: var(--space-2) 0 0;
+  font-size: 0.8rem;
 }
 
 .radio-option {
