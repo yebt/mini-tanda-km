@@ -30,7 +30,7 @@ Delegated direct (writer trigger: multi-file). RDD off (global).
 - [x] T3 Rendering: `ProductList` renders table or cards (not both); images `loading="lazy"` `decoding="async"` with fixed size.
 - [x] T4 Invalidation: per-table/domain versions instead of one global `dbVersion`.
 - [x] T5 Routes: lazy `ProductForm`; idle/hover prefetch of route chunks.
-- [x] T6 Spacing: layout tokens (`--gap-section`, `--gap-grid`, `--pad-card`) applied across all views.
+- [x] T6 (277a038) Spacing: layout tokens (`--gap-section`, `--gap-grid`, `--pad-card`) applied across all views.
 
 ## Progress / evidence
 Baseline (2026-10-06, before T1, `perf/measure.mjs`, chromium 1280×800, 10 products × 6 SKUs, preview build):
